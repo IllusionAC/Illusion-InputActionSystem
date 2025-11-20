@@ -49,6 +49,8 @@ Keybind.Hold -- Holding state defined in :SetHold() method
 
 Keybind.Cooldown -- Returns Keybind's cooldown in seconds
 
+Keybind.Binds -- Returns a table of all the bind's Keybinds and Modifiers
+
 Keybind.Activated -- For now, no purpose of using this alone, consider adding it an IAScriptSignal Method
 
 ```
