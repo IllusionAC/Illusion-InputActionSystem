@@ -1,6 +1,6 @@
 # **Illusion's InputActionSystem**
 ---
-#### Welcome to the GitHub repository of my IAS Library, you may find more informations on the[Roblox Devforum post](https://devforum.roblox.com/t/illusions-inputactionsystem-v2-currently-the-best-way-of-making-keybinds/4071242).
+#### Welcome to the GitHub repository of my IAS Library, you may find more informations in the [Roblox Devforum post](https://devforum.roblox.com/t/illusions-inputactionsystem-v2-currently-the-best-way-of-making-keybinds/4071242).
 ---
 ### Installation
 - Download the content of the IllusionIAS folder
