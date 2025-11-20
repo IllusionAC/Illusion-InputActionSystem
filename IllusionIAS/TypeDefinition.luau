@@ -1,0 +1,64 @@
+--!strict
+--TypeDefinition.luau
+--[[
+//////////////////////
+\\ Type Declaration \\
+//////////////////////
+]]
+
+export type IAScriptConnection = {
+	Connected: boolean,
+	Disconnect: (self: IAScriptConnection) -> (),
+}
+
+export type func = (active: boolean, pressed: boolean) -> ()
+
+export type IAScriptSignal = {
+	Connect: (self: IAScriptSignal, func: func) -> IAScriptConnection,
+	ConnectParallel: (self: IAScriptSignal, func: func) -> IAScriptConnection,
+	Once: (self: IAScriptSignal, func: func) -> IAScriptConnection,
+	Fire: (self: IAScriptSignal, active: boolean, pressed: boolean) -> (),
+	Wait: (self: IAScriptSignal) -> (boolean, boolean),
+}
+
+export type Bind = {
+	KeyCode: Enum.KeyCode,
+	Modifier: { Enum.KeyCode? },
+}
+
+export type Object = {
+	Name: string,
+	
+	Hold: boolean,
+	_PrevHold: boolean,
+
+	Binds: { Bind },
+	_PrevBinds: { Bind },
+
+	UIButton: GuiButton?,
+	_PrevUIButton: GuiButton?,
+	
+	Active: boolean,
+	_ToggleState: boolean,
+	
+	Cooldown: number,
+	_PrevCooldown: number,
+	_CooldownUntil: number,
+
+	Activated: IAScriptSignal,
+	
+	SetHold: (self: Object, hold: boolean) -> (),
+	SetUIButton: (self: Object, button: GuiButton?) -> (),
+	SetBinds: (self: Object, binds: { Bind }) -> (),
+	SetCooldown: (self: Object, cooldown: number) -> (),
+	
+	AddBind: (self: Object, mainKey: Enum.KeyCode, ...(Enum.KeyCode?)) -> (),
+	SetBind: (self: Object, mainKey:  Enum.KeyCode, ...(Enum.KeyCode?)) -> (),
+	RemoveBind: (self: Object, mainKey: Enum.KeyCode, ...(Enum.KeyCode?)) -> (),
+	EditBind: (self: Object, oldMain: Enum.KeyCode, oldMods: {Enum.KeyCode?}, newMain: Enum.KeyCode, newMods: {Enum.KeyCode?}) -> (),
+	ClearBinds: (self: Object) -> (),
+	
+	Destroy: (self: Object) -> (),
+}
+
+return {}
