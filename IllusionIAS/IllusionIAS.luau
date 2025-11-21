@@ -25,12 +25,22 @@ end
 
 local function bindsEqual(a: {IAS.Bind}, b: {IAS.Bind}): boolean
 	if #a ~= #b then return false end
-	for i = 1, #a do
+	for i in a do
 		local A, B = a[i], b[i]
 		if A.KeyCode ~= B.KeyCode then return false end
 		if #A.Modifier ~= #B.Modifier then return false end
-		for m = 1, #A.Modifier do if A.Modifier[m] ~= B.Modifier[m] then return false end end
+		for m in A.Modifier do if A.Modifier[m] ~= B.Modifier[m] then return false end end
 	end
+	return true
+end
+
+local function arraysEqual(a: {any}, b: {any})
+	if #a ~= #b then return false end
+
+	for i in a do
+		if a[i] ~= b[i] then return false end
+	end
+
 	return true
 end
 
@@ -48,7 +58,7 @@ local function createAction(key, InputContext: InputContext, UIButton: GuiButton
 end
 
 local function clearConnections(stateConnections: {RBXScriptConnection})
-	for i = 1, #stateConnections do
+	for i in stateConnections do
 		local c = stateConnections[i]
 		if c and c.Connected then c:Disconnect() end
 		stateConnections[i] = nil
@@ -121,10 +131,7 @@ function I2AS.new(name): IAS.Object
 
 		for _, bind in self.Binds do
 			for _, modKey in bind.Modifier do
-				if bind.KeyCode == modKey then
-					warn(`IAS: Modifier cannot be equal to KeyCode in "{self.Name}"`)
-					return
-				end
+				if bind.KeyCode == modKey then return end
 			end
 
 			createAction(bind.KeyCode, InputContext, self.UIButton)
@@ -142,8 +149,8 @@ function I2AS.new(name): IAS.Object
 		for _, action in InputContext:GetChildren() do
 			if not action:IsA("InputAction") then continue end
 
-			local keyEnum: Enum.KeyCode? = (Enum.KeyCode::any)[action.Name]
-			if not keyEnum or typeof(keyEnum) ~= "EnumItem" or keyEnum.EnumType ~= Enum.KeyCode then continue end
+			local keyEnum = Enum.KeyCode:FromName(action.Name)
+			if not keyEnum then continue end
 
 			local bindData = bindLookup[keyEnum]
 			local isModifier = not bindData
@@ -228,11 +235,6 @@ function I2AS.new(name): IAS.Object
 		self.UIButton = button
 		scheduleRebuild()
 	end
-
-	function self:SetBinds(binds)
-		self.Binds = binds
-		scheduleRebuild()
-	end
 	
 	function self:SetCooldown(cooldown)
 		self.Cooldown = (cooldown > 0) and cooldown or 0
@@ -243,75 +245,50 @@ function I2AS.new(name): IAS.Object
 		local modifiers = {}
 		local var = { ... }
 		
-		for i = 1, #var do table.insert(modifiers, var[i]) end
-		
+		for i in var do table.insert(modifiers, var[i]) end
 		for _, m in modifiers do if m == mainKey then return end end
 		
 		table.insert(self.Binds, { KeyCode = mainKey, Modifier = modifiers })
 		scheduleRebuild()
 	end
-
+	
+	function self:SetBinds(binds)
+		self.Binds = binds
+		scheduleRebuild()
+	end
+	
 	function self:SetBind(mainKey, ...: Enum.KeyCode?)
 		table.clear(self.Binds)
 		self:AddBind(mainKey, ...)
 	end
 
-	function self:ClearBinds()
-		table.clear(self.Binds)
+	function self:EditBind(oldMain: Enum.KeyCode, oldMods: {Enum.KeyCode?}, newMain: Enum.KeyCode, newMods: {Enum.KeyCode?})
+		for i, bind in self.Binds do
+			if bind.KeyCode == oldMain and arraysEqual(bind.Modifier, oldMods) then
+				table.remove(self.Binds, i)
+				break
+			end
+		end
+
+		table.insert(self.Binds, {KeyCode = newMain, Modifier = newMods})
+
 		scheduleRebuild()
 	end
 
-	function self:RemoveBind(mainKey, ...: Enum.KeyCode?)
-		local targetMods = {}
-		local var = { ... }
-		
-		for i = 1, #var do table.insert(targetMods, var[i]) end
+	function self:RemoveBind(mainKey: Enum.KeyCode, ...: Enum.KeyCode?)
+		local modifiers = { ... }
 
-		for i = #self.Binds, 1, -1 do
-			local b = self.Binds[i]
-			if b.KeyCode == mainKey and #b.Modifier == #targetMods then
-				local same = true
-				for j = 1, #targetMods do
-					if b.Modifier[j] ~= targetMods[j] then 
-						same = false 
-						break
-					end 
-				end
-				if same then
-					table.remove(self.Binds, i)
-					scheduleRebuild()
-					return
-				end
+		for i, bind in self.Binds do
+			if bind.KeyCode == mainKey and arraysEqual(bind.Modifier, modifiers) then
+				table.remove(self.Binds, i)
+				scheduleRebuild()
+				return
 			end
 		end
 	end
 
-	function self:EditBind(oldMain, oldMods, newMain, newMods)
-		local oldModifiers = {}
-		for i = 1, #oldMods do table.insert(oldModifiers, oldMods[i]) end
-
-		local newModifiers = {}
-		for i = 1, #newMods do table.insert(newModifiers, newMods[i]) end
-
-		for i = #self.Binds, 1, -1 do
-			local b = self.Binds[i]
-			if b.KeyCode == oldMain and #b.Modifier == #oldModifiers then
-				local same = true
-				for j = 1, #oldModifiers do 
-					if b.Modifier[j] ~= oldModifiers[j] then 
-						same = false 
-						break 
-					end 
-				end
-
-				if same then
-					table.remove(self.Binds, i)
-					break
-				end
-			end
-		end
-
-		table.insert(self.Binds, { KeyCode = newMain, Modifier = newModifiers })
+	function self:ClearBinds()
+		table.clear(self.Binds)
 		scheduleRebuild()
 	end
 
@@ -320,7 +297,7 @@ function I2AS.new(name): IAS.Object
 		table.clear(modifiersState)
 
 		if InputContext.Parent then InputContext:Destroy() end
-
+		
 		activeBinds[self.Name] = nil
 	end
 
