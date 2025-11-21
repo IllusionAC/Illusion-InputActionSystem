@@ -8,11 +8,17 @@ local IAS = require("./TypeDefinition")
 ////////////////////////// 
 ]]
 
+local function DesyncCall(cb: IAS.func, active: boolean, pressed: boolean)
+	task.desynchronize()
+	pcall(cb, active, pressed)
+	task.synchronize()
+end
+
 return {
 	makeSignal = function(): IAS.IAScriptSignal
 		local listeners: {[IAS.IAScriptConnection]: IAS.func} = {}
 		local parallelListeners: {[IAS.IAScriptConnection]: IAS.func} = {}
-
+		
 		local function disconnect(self: IAS.IAScriptConnection)
 			if not self.Connected then return end
 
@@ -32,8 +38,7 @@ return {
 			return connection
 		end
 
-		local signal: IAS.IAScriptSignal = {	
-
+		local signal: IAS.IAScriptSignal = {
 			Connect = function(self: IAS.IAScriptSignal, func: IAS.func): IAS.IAScriptConnection
 				return makeConnection(listeners, func)
 			end,
@@ -44,7 +49,6 @@ return {
 
 			Once = function(self: IAS.IAScriptSignal, func: IAS.func): IAS.IAScriptConnection
 				local connection: IAS.IAScriptConnection
-
 				connection = makeConnection(listeners, function(active, pressed)
 					if not connection.Connected then return end
 					connection:Disconnect()
@@ -55,22 +59,23 @@ return {
 			end,
 
 			Fire = function(self: IAS.IAScriptSignal, active: boolean, pressed: boolean)
-				for conn, cb in listeners do
-					if conn.Connected then
-						task.spawn(cb, active, pressed)
-					end
+				local syncCopy: { [IAS.IAScriptConnection]: IAS.func } = {}
+				for k, v in listeners do syncCopy[k] = v end
+
+				local parallelCopy: { [IAS.IAScriptConnection]: IAS.func } = {}
+				for k, v in parallelListeners do parallelCopy[k] = v end
+
+				for conn, cb in syncCopy do
+					if conn.Connected then task.spawn(cb, active, pressed) end
 				end
 
-				for conn, cb in parallelListeners do
-					if conn.Connected then
-						task.desynchronize()
-						pcall(cb, active, pressed)
-						task.synchronize()
-					end
+				for conn, cb in parallelCopy do
+					if conn.Connected then task.spawn(DesyncCall, cb, active, pressed) end
 				end
 			end,
-
+			
 			Wait = function(self: IAS.IAScriptSignal): (boolean, boolean)
+
 				local thread = coroutine.running()
 				local resultActive = false
 				local resultPressed = false
