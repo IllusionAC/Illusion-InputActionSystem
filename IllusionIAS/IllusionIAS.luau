@@ -29,18 +29,18 @@ local function bindsEqual(a: {IAS.Bind}, b: {IAS.Bind}): boolean
 		local A, B = a[i], b[i]
 		if A.KeyCode ~= B.KeyCode then return false end
 		if #A.Modifier ~= #B.Modifier then return false end
-		for m in A.Modifier do if A.Modifier[m] ~= B.Modifier[m] then return false end end
+		for m in A.Modifier do
+			if A.Modifier[m] ~= B.Modifier[m] then return false end
+		end
 	end
 	return true
 end
 
 local function arraysEqual(a: {any}, b: {any})
 	if #a ~= #b then return false end
-
 	for i in a do
 		if a[i] ~= b[i] then return false end
 	end
-
 	return true
 end
 
@@ -58,9 +58,14 @@ local function createAction(key, InputContext: InputContext, UIButton: GuiButton
 end
 
 local function clearConnections(stateConnections: {RBXScriptConnection})
+	if not stateConnections then return end
+	
 	for i in stateConnections do
 		local c = stateConnections[i]
 		if c and c.Connected then c:Disconnect() end
+	end
+	
+	for i in stateConnections do
 		stateConnections[i] = nil
 	end
 end
@@ -115,6 +120,7 @@ function I2AS.new(name): IAS.Object
 	local rebuildScheduled = false
 	
 	local function fire(active, pressed)
+		
 		if active then
 			local now = os.clock()
 			if self.Cooldown > 0 and now < self._CooldownUntil then return end
@@ -131,7 +137,7 @@ function I2AS.new(name): IAS.Object
 
 		for _, bind in self.Binds do
 			for _, modKey in bind.Modifier do
-				if bind.KeyCode == modKey then return end
+				if bind.KeyCode == modKey then continue end
 			end
 
 			createAction(bind.KeyCode, InputContext, self.UIButton)
