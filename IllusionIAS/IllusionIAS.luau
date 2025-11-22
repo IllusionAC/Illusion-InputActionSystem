@@ -157,7 +157,7 @@ function I2AS.new(name: string): IAS.Object
 	
 	local function fire(active, pressed)
 		if active then
-			local now = os.clock()
+			local now = time()
 			if self.Cooldown > 0 and now < self._CooldownUntil then return end
 			if self.Cooldown > 0 then self._CooldownUntil = now + self.Cooldown end
 		end
@@ -235,15 +235,11 @@ function I2AS.new(name: string): IAS.Object
 				if not bindDataList then return end
 
 				local _anyBindSatisfied = false
-				local _anyBindAllActive = true
-				local _atLeastOneBindHasModifier = false
 
 				for _, bindData in bindDataList do
 					local allModsPresent = true
-					local hasModifier = false
 					for _, modKey in bindData.Modifier do
 						if modKey then
-							hasModifier = true
 							if not modifiersState[modKey] then
 								allModsPresent = false
 								break
@@ -251,22 +247,22 @@ function I2AS.new(name: string): IAS.Object
 						end
 					end
 
-					if hasModifier then _atLeastOneBindHasModifier = true end
 					if allModsPresent then _anyBindSatisfied = true end
-					if not allModsPresent then _anyBindAllActive = false end
 				end
 
-				if self.TapRequired and self.TapRequired > 1 and pressed then
-					local now = os.clock()
-					if now - self._LastTapTime > self.TapWindow then
+				if pressed then
+					local now = time()
+
+					if self.TapRequired > 1 then
+						if now - self._LastTapTime > self.TapWindow then self._TapCount = 0 end
+
+						self._TapCount += 1
+						self._LastTapTime = now
+
+						if self._TapCount < self.TapRequired then return end
+
 						self._TapCount = 0
 					end
-					self._TapCount = self._TapCount + 1
-					self._LastTapTime = now
-					if self._TapCount < self.TapRequired then
-						return
-					end
-					self._TapCount = 0
 				end
 
 				if self.Hold then
