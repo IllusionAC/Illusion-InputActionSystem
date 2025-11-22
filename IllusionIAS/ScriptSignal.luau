@@ -1,41 +1,52 @@
 --!strict
 -- ScriptSignal.luau
-local IAS = require("./TypeDefinition")
-
 --[[ 
 //////////////////////////// 
 // Signal Factory Module // 
 ////////////////////////// 
 ]]
 
-local function DesyncCall(cb: IAS.func, active: boolean, pressed: boolean)
-	task.desynchronize()
-	pcall(cb, active, pressed)
-	task.synchronize()
+local IAS = require("./TypeDefinition")
+
+local function makeConnectionObject()
+	local connection: IAS.IAScriptConnection = {
+		Connected = true,
+		Disconnect = function() end,
+	}
+	return connection
 end
 
 return {
 	makeSignal = function(): IAS.IAScriptSignal
-		local listeners: {[IAS.IAScriptConnection]: IAS.func} = {}
-		local parallelListeners: {[IAS.IAScriptConnection]: IAS.func} = {}
+		local listeners: { { conn: IAS.IAScriptConnection, cb: IAS.func } } = {}
+		local parallelListeners: { { conn: IAS.IAScriptConnection, cb: IAS.func } } = {}
 		
-		local function disconnect(self: IAS.IAScriptConnection)
-			if not self.Connected then return end
-
-			self.Connected = false
-			listeners[self] = nil
-			parallelListeners[self] = nil
+		local function disconnect(map, entry)
+			return function()
+				if not entry.conn.Connected then return end
+				entry.conn.Connected = false
+				for i = #map, 1, -1 do
+					if map[i] == entry then
+						table.remove(map, i)
+						break
+					end
+				end
+			end
 		end
 
-		local function makeConnection(targetMap: {[IAS.IAScriptConnection]: IAS.func}, func: IAS.func): IAS.IAScriptConnection
+		local function makeConnection(targetMap: { { conn: IAS.IAScriptConnection, cb: IAS.func } }, func: IAS.func)
+			local entry = { conn = makeConnectionObject(), cb = func }
+			entry.conn.Disconnect = disconnect(targetMap, entry)
+			entry.conn.Connected = true
 
-			local connection: IAS.IAScriptConnection = {
-				Connected = true,
-				Disconnect = disconnect,
-			}
+			table.insert(targetMap, entry)
+			return entry.conn
+		end
 
-			targetMap[connection] = func
-			return connection
+		local function DesyncCall(cb: IAS.func, active: boolean, pressed: boolean)
+			task.spawn(function()
+				pcall(cb, active, pressed)
+			end)
 		end
 
 		local signal: IAS.IAScriptSignal = {
@@ -59,23 +70,28 @@ return {
 			end,
 
 			Fire = function(self: IAS.IAScriptSignal, active: boolean, pressed: boolean)
-				local syncCopy: { [IAS.IAScriptConnection]: IAS.func } = {}
-				for k, v in listeners do syncCopy[k] = v end
+				local syncCopy = {}
+				for i = 1, #listeners do syncCopy[i] = listeners[i] end
 
-				local parallelCopy: { [IAS.IAScriptConnection]: IAS.func } = {}
-				for k, v in parallelListeners do parallelCopy[k] = v end
+				local parallelCopy = {}
+				for i = 1, #parallelListeners do parallelCopy[i] = parallelListeners[i] end
 
-				for conn, cb in syncCopy do
-					if conn.Connected then task.spawn(cb, active, pressed) end
+				for i = 1, #syncCopy do
+					local entry = syncCopy[i]
+					if entry and entry.conn.Connected then
+						task.spawn(function()
+							pcall(entry.cb, active, pressed)
+						end)
+					end
 				end
 
-				for conn, cb in parallelCopy do
-					if conn.Connected then task.spawn(DesyncCall, cb, active, pressed) end
+				for i = 1, #parallelCopy do
+					local entry = parallelCopy[i]
+					if entry and entry.conn.Connected then DesyncCall(entry.cb, active, pressed) end
 				end
 			end,
 			
 			Wait = function(self: IAS.IAScriptSignal): (boolean, boolean)
-
 				local thread = coroutine.running()
 				local resultActive = false
 				local resultPressed = false
