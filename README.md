@@ -22,7 +22,9 @@ SetUIButton(button: GuiButton?) -- nil by default, set a GuiButton as a secondar
 -- There's currently a bug which prevents UIButton to trigger the InputAction if any keybinds has a Modifier option.
 
 SetCooldown(cooldown: number) -- 0 by default, set a cooldown between each activation
-	
+
+SetTapActivation(requiredTaps: number, tapWindow: number) -- 1, 0 by default, allows the bind to be activated by tapping a selected number of time. Cancels after a selected time
+
 AddBind(mainKey: Enum.KeyCode, ...Enum.KeyCode?) -- Add one keybind; allows one or more modifiers
 
 SetBinds(binds: { Bind }) -- Hard code your keybinds, and their modifiers. Check Code snippet under for usage
