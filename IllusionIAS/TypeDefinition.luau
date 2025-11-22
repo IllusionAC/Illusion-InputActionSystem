@@ -45,12 +45,21 @@ export type Object = {
 	_PrevCooldown: number,
 	_CooldownUntil: number,
 
+	TapRequired: number,
+	TapWindow: number,
+	_PrevTapRequired: number,
+	_PrevTapWindow: number,
+
+	_LastTapTime: number,
+	_TapCount: number,
+
 	Activated: IAScriptSignal,
 	
 	SetHold: (self: Object, hold: boolean) -> (),
 	SetUIButton: (self: Object, button: GuiButton?) -> (),
 	SetBinds: (self: Object, binds: { Bind }) -> (),
 	SetCooldown: (self: Object, cooldown: number) -> (),
+	SetTapActivation: (self: Object, requiredTaps: number, tapWindow: number) -> (),
 	
 	AddBind: (self: Object, mainKey: Enum.KeyCode, ...(Enum.KeyCode?)) -> (),
 	SetBind: (self: Object, mainKey:  Enum.KeyCode, ...(Enum.KeyCode?)) -> (),
