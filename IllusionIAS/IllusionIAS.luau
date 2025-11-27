@@ -1,5 +1,5 @@
 --!strict
--- IllusionIAS.luau (fixed)
+--IllusionIAS.luau
 --[[
 ///////////////////////////////////////////////
 \\      Illusion's InputActionSystem         \\
@@ -8,7 +8,7 @@
 //  More informations on the DevForum post   //
 \\              By Illusion                  \\
 ///////////////////////////////////////////////
-]]--
+]]
 
 local IAS = require("@self/TypeDefinition")
 local Signal = require("@self/ScriptSignal")
@@ -72,6 +72,10 @@ local function deepCloneBinds(binds: {IAS.Bind})
 	return out
 end
 
+local function isValidKeyCode(key: any): boolean
+	return typeof(key) == "EnumItem" and key.EnumType == Enum.KeyCode
+end
+
 local function createAction(key: Enum.KeyCode, InputContext: Instance, UIButton: GuiButton?)
 	local action = Instance.new("InputAction")
 	action.Name = key.Name
@@ -122,6 +126,8 @@ function I2AS.new(name: string): IAS.Object
 		Active = false,
 		_ToggleState = false,
 		
+		Enabled = true,
+		
 		Cooldown = 0,
 		_PrevCooldown = 0,
 		_CooldownUntil = 0,
@@ -134,13 +140,16 @@ function I2AS.new(name: string): IAS.Object
 		_LastTapTime = 0,
 		_TapCount = 0,
 		
-		Activated = Signal.makeSignal(),
+		Activated = Signal.new(),
 		
 		SetHold = function() end,
 		SetUIButton = function() end,
 		SetBinds = function() end,
 		SetCooldown = function() end,
 		SetTapActivation = function() end,
+		SetEnabled = function() end,
+		IsEnabled = function() return true end,
+		GetBinds = function() return {} end,
 
 		AddBind = function() end,
 		SetBind = function() end,
@@ -155,7 +164,11 @@ function I2AS.new(name: string): IAS.Object
 	local stateConnections: { RBXScriptConnection } = {}
 	local rebuildScheduled = false
 	
+	local modifierToBindsMap: { [Enum.KeyCode]: {IAS.Bind} } = {}
+	
 	local function fire(active, pressed)
+		if not self.Enabled then return end
+		
 		if active then
 			local now = time()
 			if self.Cooldown > 0 and now < self._CooldownUntil then return end
@@ -172,6 +185,7 @@ function I2AS.new(name: string): IAS.Object
 		for _, child in InputContext:GetChildren() do child:Destroy() end
 
 		modifiersState = {}
+		modifierToBindsMap = {}
 
 		local bindLookup: { [Enum.KeyCode]: {IAS.Bind} } = {}
 		local modifierKeysSet: { [Enum.KeyCode]: boolean } = {}
@@ -179,8 +193,13 @@ function I2AS.new(name: string): IAS.Object
 		for _, b in self.Binds do
 			bindLookup[b.KeyCode] = bindLookup[b.KeyCode] or {}
 			table.insert(bindLookup[b.KeyCode], b)
+			
 			for _, m in b.Modifier do
-				if m and typeof(m) == "EnumItem" and m.EnumType == Enum.KeyCode then modifierKeysSet[m] = true end
+				if m and isValidKeyCode(m) then
+					modifierKeysSet[m] = true
+					modifierToBindsMap[m] = modifierToBindsMap[m] or {}
+					table.insert(modifierToBindsMap[m], b)
+				end
 			end
 		end
 
@@ -213,14 +232,21 @@ function I2AS.new(name: string): IAS.Object
 				local rbxConnection = action.StateChanged:Connect(function(pressed: boolean)
 					modifiersState[keyEnum] = pressed
 
-					if self.Hold and not pressed then
-						for _, bindsForKey in bindLookup do
-							for _, b in bindsForKey do
-								for _, modKey in b.Modifier do
-									if modKey == keyEnum and self.Active then
-										fire(false, false)
+					if self.Hold and not pressed and self.Active then
+						local affectedBinds = modifierToBindsMap[keyEnum]
+						if affectedBinds then
+							for _, bind in affectedBinds do
+								local allModsStillPressed = true
+								for _, modKey in bind.Modifier do
+									if modKey and not modifiersState[modKey] then
+										allModsStillPressed = false
 										break
 									end
+								end
+								
+								if not allModsStillPressed then
+									fire(false, false)
+									break
 								end
 							end
 						end
@@ -233,6 +259,8 @@ function I2AS.new(name: string): IAS.Object
 
 			local rbxConnection = action.StateChanged:Connect(function(pressed: boolean)
 				if not bindDataList then return end
+				
+				if not self.Enabled then return end
 
 				local _anyBindSatisfied = false
 
@@ -254,7 +282,9 @@ function I2AS.new(name: string): IAS.Object
 					local now = time()
 
 					if self.TapRequired > 1 then
-						if now - self._LastTapTime > self.TapWindow then self._TapCount = 0 end
+						if now - self._LastTapTime > self.TapWindow then 
+							self._TapCount = 0
+						end
 
 						self._TapCount += 1
 						self._LastTapTime = now
@@ -281,8 +311,10 @@ function I2AS.new(name: string): IAS.Object
 				if pressed and _anyBindSatisfied then
 					self._ToggleState = not self._ToggleState
 					fire(self._ToggleState, pressed)
-				elseif pressed and not _anyBindSatisfied then return
-				else fire(self._ToggleState, pressed) 
+				elseif pressed and not _anyBindSatisfied then 
+					return
+				else 
+					fire(self._ToggleState, pressed) 
 				end
 			end)
 
@@ -326,13 +358,13 @@ function I2AS.new(name: string): IAS.Object
 	end
 	
 	function self:SetCooldown(cooldown: number)
-		self.Cooldown = (cooldown > 0) and cooldown or 0
+		self.Cooldown = math.max(0, cooldown)
 		scheduleRebuild()
 	end
 
 	function self:SetTapActivation(requiredTaps: number, tapWindow: number)
-		requiredTaps = (requiredTaps >= 1) and requiredTaps or 1
-		tapWindow = (tapWindow > 0) and tapWindow or 0
+		requiredTaps = math.max(1, requiredTaps)
+		tapWindow = math.max(0, tapWindow)
 
 		self.TapRequired = requiredTaps
 		self.TapWindow = tapWindow
@@ -342,15 +374,47 @@ function I2AS.new(name: string): IAS.Object
 		scheduleRebuild()
 	end
 	
+	function self:SetEnabled(enabled: boolean)
+		self.Enabled = enabled
+		
+		if not enabled and self.Active and self.Hold then
+			self.Active = false
+			self.Activated:Fire(false, false)
+		end
+	end
+	
+	function self:IsEnabled(): boolean
+		return self.Enabled
+	end
+	
+	function self:GetBinds(): {IAS.Bind}
+		return deepCloneBinds(self.Binds)
+	end
+	
 	function self:AddBind(mainKey: Enum.KeyCode, ...: Enum.KeyCode?)
+		if not isValidKeyCode(mainKey) then
+			warn(("Invalid KeyCode provided: %s"):format(tostring(mainKey)))
+			return
+		end
+		
 		local modifiers = {}
 		local var = { ... }
 		
-		for i = 1, #var do table.insert(modifiers, var[i]) end
+		for i = 1, #var do 
+			local mod = var[i]
+			if mod and isValidKeyCode(mod) then
+				table.insert(modifiers, mod)
+			elseif mod then
+				warn(("Invalid modifier KeyCode: %s"):format(tostring(mod)))
+			end
+		end
+		
 		for _, m in modifiers do if m == mainKey then return end end
 
 		for _, existing in self.Binds do
-			if existing.KeyCode == mainKey and modifiersEqualSet(existing.Modifier, modifiers) then return end
+			if existing.KeyCode == mainKey and modifiersEqualSet(existing.Modifier, modifiers) then 
+				return 
+			end
 		end
 		
 		table.insert(self.Binds, { KeyCode = mainKey, Modifier = modifiers })
@@ -358,7 +422,20 @@ function I2AS.new(name: string): IAS.Object
 	end
 	
 	function self:SetBinds(binds: {IAS.Bind})
-		self.Binds = deepCloneBinds(binds)
+		local validBinds = {}
+		for _, bind in binds do
+			if isValidKeyCode(bind.KeyCode) then
+				local validMods = {}
+				for _, mod in bind.Modifier do
+					if not mod or isValidKeyCode(mod) then
+						table.insert(validMods, mod)
+					end
+				end
+				table.insert(validBinds, { KeyCode = bind.KeyCode, Modifier = validMods })
+			end
+		end
+		
+		self.Binds = deepCloneBinds(validBinds)
 		scheduleRebuild()
 	end
 	
@@ -377,7 +454,6 @@ function I2AS.new(name: string): IAS.Object
 		end
 
 		self:AddBind(newMain, table.unpack(newMods or {}))
-		scheduleRebuild()
 	end
 
 	function self:RemoveBind(mainKey: Enum.KeyCode, ...: Enum.KeyCode?)
@@ -401,6 +477,7 @@ function I2AS.new(name: string): IAS.Object
 	function self:Destroy()
 		clearConnections(stateConnections)
 		table.clear(modifiersState)
+		table.clear(modifierToBindsMap)
 
 		if InputContext and InputContext.Parent then
 			for _, child in InputContext:GetChildren() do child:Destroy() end
@@ -414,8 +491,12 @@ function I2AS.new(name: string): IAS.Object
 	return self
 end
 
-function I2AS.Get(name: string?): {[string]: IAS.Object} | IAS.Object?
-	return name and activeBinds[name] or activeBinds
+function I2AS.Get(name: string): IAS.Object?
+	return activeBinds[name]
+end
+
+function I2AS.GetAll(): {[string]: IAS.Object}
+	return activeBinds
 end
 
 return I2AS
