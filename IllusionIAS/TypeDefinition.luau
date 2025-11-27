@@ -1,8 +1,8 @@
 --!strict
 --TypeDefinition.luau
 --[[
-//////////////////////
-\\ Type Declaration \\
+  //////////////////////
+ // Type Declaration //
 //////////////////////
 ]]
 
@@ -12,6 +12,13 @@ export type IAScriptConnection = {
 }
 
 export type func = (active: boolean, pressed: boolean) -> ()
+
+export type Node = {
+	fn: func,
+	connected: boolean,
+	parallel: boolean,
+	next: Node?,
+}
 
 export type IAScriptSignal = {
 	Connect: (self: IAScriptSignal, func: func) -> IAScriptConnection,
@@ -40,7 +47,9 @@ export type Object = {
 	
 	Active: boolean,
 	_ToggleState: boolean,
-	
+
+	Enabled: boolean,
+
 	Cooldown: number,
 	_PrevCooldown: number,
 	_CooldownUntil: number,
@@ -60,7 +69,10 @@ export type Object = {
 	SetBinds: (self: Object, binds: { Bind }) -> (),
 	SetCooldown: (self: Object, cooldown: number) -> (),
 	SetTapActivation: (self: Object, requiredTaps: number, tapWindow: number) -> (),
-	
+	SetEnabled: (self: Object, enabled: boolean) -> (),
+	IsEnabled: (self: Object) -> boolean,
+	GetBinds: (self: Object) -> {},
+
 	AddBind: (self: Object, mainKey: Enum.KeyCode, ...(Enum.KeyCode?)) -> (),
 	SetBind: (self: Object, mainKey:  Enum.KeyCode, ...(Enum.KeyCode?)) -> (),
 	RemoveBind: (self: Object, mainKey: Enum.KeyCode, ...(Enum.KeyCode?)) -> (),
