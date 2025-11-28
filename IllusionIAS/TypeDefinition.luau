@@ -6,26 +6,24 @@
 //////////////////////
 ]]
 
+export type func = (...any) -> ()
+
 export type IAScriptConnection = {
 	Connected: boolean,
 	Disconnect: (self: IAScriptConnection) -> (),
 }
 
-export type func = (active: boolean, pressed: boolean) -> ()
+export type IAScriptSignal = {
+	Connect: (self: IAScriptSignal, fn: func) -> IAScriptConnection,
+	Once: (self: IAScriptSignal, fn: func) -> IAScriptConnection,
+	Fire: (self: IAScriptSignal, ...any) -> (),
+	Wait: (self: IAScriptSignal) -> ...any,
+	DisconnectAll: (self: IAScriptSignal) -> (),
+}
 
 export type Node = {
 	fn: func,
-	connected: boolean,
-	parallel: boolean,
 	next: Node?,
-}
-
-export type IAScriptSignal = {
-	Connect: (self: IAScriptSignal, func: func) -> IAScriptConnection,
-	ConnectParallel: (self: IAScriptSignal, func: func) -> IAScriptConnection,
-	Once: (self: IAScriptSignal, func: func) -> IAScriptConnection,
-	Fire: (self: IAScriptSignal, active: boolean, pressed: boolean) -> (),
-	Wait: (self: IAScriptSignal) -> (boolean, boolean),
 }
 
 export type Bind = {
