@@ -14,7 +14,8 @@
 >Methods:
 ```
 IAS.new(name: string) -- create and name a new bind.
-IAS.Get(name: string?) -- returns the bind's table if name is entered / it exists, the entire IAS table else
+IAS.Get(name: string?) -- returns the bind's table
+IAS.GetAll() -- returns the entire IAS table
 
 SetHold(hold: boolean) -- true by default, turns the bind as button or a switch
 
@@ -22,6 +23,12 @@ SetUIButton(button: GuiButton?) -- nil by default, set a GuiButton as a secondar
 -- There's currently a bug which prevents UIButton to trigger the InputAction if any keybinds has a Modifier option.
 
 SetCooldown(cooldown: number) -- 0 by default, set a cooldown between each activation
+
+SetEnabled(boolean) -- Enable or disable the bind
+
+IsEnable() -- returns bind’s enable state
+
+GetBinds() -- returns a list of all the keybinds of the bind
 
 SetTapActivation(requiredTaps: number, tapWindow: number) -- 1, 0 by default, allows the bind to be activated by tapping a selected number of time. Cancels after a selected time
 
@@ -45,19 +52,21 @@ Destroy() -- delete the bind
 ```lua
 Keybind.Name -- Name defined in .new() attribute
 
-Keybind.Active -- State of the Keybind (enabled or disabled)
+Keybind.Active -- State of the Keybind (activated or deactivated)
+
+Keybind.Enabled --  Bind is enabled or disabled (not to confound with Active)
 
 Keybind.Hold -- Holding state defined in :SetHold() method
 
 Keybind.Cooldown -- Returns Keybind's cooldown in seconds
-
-Keybind.Binds -- Returns a table of all the bind's Keybinds and Modifiers
 
 Keybind.Activated -- For now, no purpose of using this alone, consider adding it an IAScriptSignal Method
 
 ```
 Available IAScriptSignal methods are the same ones as Roblox (Connect, ConnectParallel, Once, Wait)
 Although they were custom made, they share Roblox's conventional usage, Check [RBXScriptSignal](https://create.roblox.com/docs/reference/engine/datatypes/RBXScriptSignal)
+
+IIAS uses an other module of mine, [IllusionSignal](https://github.com/IllusionAC/IllusionSignal)
 #
 ---
 Exemple code: two keybinds changing Humanoid walkspeed
