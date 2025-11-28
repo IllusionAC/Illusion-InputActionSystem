@@ -11,7 +11,7 @@
 ]]
 
 local IAS = require("@self/TypeDefinition")
-local Signal = require("@self/ScriptSignal")
+local IASignal = require("@self/IllusionSignal")
 
 local function getBindFolder()
 	local existing = script:FindFirstChildOfClass("Folder")
@@ -140,7 +140,7 @@ function I2AS.new(name: string): IAS.Object
 		_LastTapTime = 0,
 		_TapCount = 0,
 		
-		Activated = Signal.new(),
+		Activated = IASignal.new(),
 		
 		SetHold = function() end,
 		SetUIButton = function() end,
