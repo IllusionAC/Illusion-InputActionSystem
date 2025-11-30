@@ -6,7 +6,7 @@
 //////////////////////
 ]]
 
-export type func = (...any) -> ()
+export type func = (active: boolean, pressed: boolean) -> ()
 
 export type IAScriptConnection = {
 	Connected: boolean,
