@@ -166,12 +166,15 @@ function I2AS.new(name: string): IAS.Object
 	
 	local modifierToBindsMap: { [Enum.KeyCode]: {IAS.Bind} } = {}
 	
-	local function fire(active, pressed)
+	local function fire(active: boolean, pressed: boolean)
 		if not self.Enabled then return end
 		
 		if active then
 			local now = time()
-			if self.Cooldown > 0 and now < self._CooldownUntil then return end
+			if self.Cooldown > 0 and now < self._CooldownUntil then 
+				self.Activated:Fire(self.Active, pressed)
+				return 
+			end
 			if self.Cooldown > 0 then self._CooldownUntil = now + self.Cooldown end
 		end
 
