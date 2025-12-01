@@ -38,7 +38,7 @@ export type Object = {
 	_PrevHold: boolean,
 
 	Binds: { Bind },
-	_PrevBinds: { Bind },
+	_PrevBindsHash: string,
 
 	UIButton: GuiButton?,
 	_PrevUIButton: GuiButton?,
@@ -69,7 +69,7 @@ export type Object = {
 	SetTapActivation: (self: Object, requiredTaps: number, tapWindow: number) -> (),
 	SetEnabled: (self: Object, enabled: boolean) -> (),
 	IsEnabled: (self: Object) -> boolean,
-	GetBinds: (self: Object) -> {},
+	GetBinds: (self: Object) -> {Bind},
 
 	AddBind: (self: Object, mainKey: Enum.KeyCode, ...(Enum.KeyCode?)) -> (),
 	SetBind: (self: Object, mainKey:  Enum.KeyCode, ...(Enum.KeyCode?)) -> (),
