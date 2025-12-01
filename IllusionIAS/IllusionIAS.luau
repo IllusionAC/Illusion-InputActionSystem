@@ -24,52 +24,72 @@ local function getBindFolder()
 end
 
 local function modifiersEqualSet(a: {Enum.KeyCode?}, b: {Enum.KeyCode?}): boolean
-	if (#a == 0 and #b == 0) then return true end
 	if #a ~= #b then return false end
 
-	local seen = {}
-	for i = 1, #a do seen[a[i]] = (seen[a[i]] or 0) + 1 end
-	for i = 1, #b do
-		if not seen[b[i]] or seen[b[i]] <= 0 then return false end
-		seen[b[i]] = seen[b[i]] - 1
+	local counts: {[Enum.KeyCode]: number} = {}
+
+	for _, key in a do
+		if key then counts[key] = (counts[key] or 0) + 1 end
 	end
 
-	for _, v in seen do if v ~= 0 then return false end end
+	for _, key in b do
+		if not key or not counts[key] or counts[key] == 0 then return false end
+		counts[key] -= 1
+	end
 
 	return true
+end
+
+local function bindToString(bind: IAS.Bind): string
+	local mods = table.clone(bind.Modifier)
+	table.sort(mods, function(a: Enum.KeyCode?, b: Enum.KeyCode?): boolean
+		return (a and a.Value or 0) < (b and b.Value or 0)
+	end)
+
+	local parts: {string} = {tostring(bind.KeyCode.Value)}
+
+	for _, mod in mods do
+		if mod then table.insert(parts, tostring(mod.Value)) end
+	end
+
+	return table.concat(parts, ":")
 end
 
 local function bindsEqual(a: {IAS.Bind}, b: {IAS.Bind}): boolean
 	if #a ~= #b then return false end
 
-	local matched = {}
-	for i = 1, #a do
-		local A = a[i]
-		local found = false
-		for j = 1, #b do
-			if not matched[j] then
-				local B = b[j]
-				if A.KeyCode == B.KeyCode and modifiersEqualSet(A.Modifier, B.Modifier) then
-					matched[j] = true
-					found = true
-					break
-				end
-			end
-		end
-		if not found then return false end
+	local counts: {[string]: number} = {}
+
+	for _, bind in a do
+		local hash = bindToString(bind)
+		counts[hash] = (counts[hash] or 0) + 1
 	end
+
+	for _, bind in b do
+		local hash = bindToString(bind)
+		if not counts[hash] or counts[hash] == 0 then return false end
+		counts[hash] -= 1
+	end
+
 	return true
 end
 
-local function deepCloneBinds(binds: {IAS.Bind})
-	local out = {}
-	for i = 1, #binds do
-		local b = binds[i]
-		local mods = {}
-		for j = 1, #b.Modifier do mods[j] = b.Modifier[j] end
-		out[i] = { KeyCode = b.KeyCode, Modifier = mods }
+local function getBindsHash(binds: {IAS.Bind}): string
+	local hashes: {string} = {}
+	for _, bind in binds do table.insert(hashes, bindToString(bind)) end
+	table.sort(hashes)
+	return table.concat(hashes, "|")
+end
+
+local function deepCloneBinds(binds: {IAS.Bind}): {IAS.Bind}
+	local cloned: {IAS.Bind} = {}
+
+	for _, bind in binds do
+		local clonedMods: {Enum.KeyCode?} = table.clone(bind.Modifier)
+		table.insert(cloned, {KeyCode = bind.KeyCode, Modifier = clonedMods})
 	end
-	return out
+
+	return cloned
 end
 
 local function isValidKeyCode(key: any): boolean
@@ -118,7 +138,7 @@ function I2AS.new(name: string): IAS.Object
 		_PrevHold = true,
 
 		Binds = {},
-		_PrevBinds = {},
+		_PrevBindsHash = "",
 
 		UIButton = nil,
 		_PrevUIButton = nil,
@@ -149,7 +169,7 @@ function I2AS.new(name: string): IAS.Object
 		SetTapActivation = function() end,
 		SetEnabled = function() end,
 		IsEnabled = function() return true end,
-		GetBinds = function() return {} end,
+		GetBinds = function(): {IAS.Bind} return {} end,
 
 		AddBind = function() end,
 		SetBind = function() end,
@@ -160,7 +180,7 @@ function I2AS.new(name: string): IAS.Object
 		Destroy = function() end,
 	}
 
-	local modifiersState: { [Enum.KeyCode]: boolean } = {}
+	local modifiersState = {}
 	local stateConnections: { RBXScriptConnection } = {}
 	local rebuildScheduled = false
 	
@@ -168,14 +188,15 @@ function I2AS.new(name: string): IAS.Object
 	
 	local function fire(active: boolean, pressed: boolean)
 		if not self.Enabled then return end
-		
-		if active then
-			local now = time()
-			if self.Cooldown > 0 and now < self._CooldownUntil then 
-				self.Activated:Fire(self.Active, pressed)
-				return 
-			end
-			if self.Cooldown > 0 then self._CooldownUntil = now + self.Cooldown end
+
+		local now = time()
+
+		if active and self.Cooldown > 0 and now < self._CooldownUntil then
+			active = false
+		end
+
+		if active and pressed and self.Cooldown > 0 then
+			self._CooldownUntil = now + self.Cooldown
 		end
 
 		self.Active = active
@@ -265,7 +286,7 @@ function I2AS.new(name: string): IAS.Object
 				
 				if not self.Enabled then return end
 
-				local _anyBindSatisfied = false
+				local anyBindSatisfied = false
 
 				for _, bindData in bindDataList do
 					local allModsPresent = true
@@ -278,7 +299,7 @@ function I2AS.new(name: string): IAS.Object
 						end
 					end
 
-					if allModsPresent then _anyBindSatisfied = true end
+					if allModsPresent then anyBindSatisfied = true end
 				end
 
 				if pressed then
@@ -299,22 +320,22 @@ function I2AS.new(name: string): IAS.Object
 				end
 
 				if self.Hold then
-					if not _anyBindSatisfied and self.Active then
+					if not anyBindSatisfied and self.Active then
 						fire(false, false)
 						return
 					end
 
-					if _anyBindSatisfied then
+					if anyBindSatisfied then
 						fire(pressed, pressed)
 					end
 
 					return
 				end
 
-				if pressed and _anyBindSatisfied then
+				if pressed and anyBindSatisfied then
 					self._ToggleState = not self._ToggleState
 					fire(self._ToggleState, pressed)
-				elseif pressed and not _anyBindSatisfied then 
+				elseif pressed and not anyBindSatisfied then 
 					return
 				else 
 					fire(self._ToggleState, pressed) 
@@ -329,14 +350,16 @@ function I2AS.new(name: string): IAS.Object
 		if rebuildScheduled then return end
 		rebuildScheduled = true
 		task.defer(function()
-			if not (bindsEqual(self.Binds, self._PrevBinds)
+			local currentHash = getBindsHash(self.Binds)
+
+			if not (currentHash == self._PrevBindsHash
 				and self.UIButton == self._PrevUIButton
 				and self.Hold == self._PrevHold
 				and self.Cooldown == self._PrevCooldown
 				and self.TapRequired == self._PrevTapRequired
 				and self.TapWindow == self._PrevTapWindow) then
 
-				self._PrevBinds = deepCloneBinds(self.Binds)
+				self._PrevBindsHash = currentHash
 				self._PrevUIButton = self.UIButton
 				self._PrevHold = self.Hold
 				self._PrevCooldown = self.Cooldown
@@ -345,7 +368,7 @@ function I2AS.new(name: string): IAS.Object
 
 				rebuild()
 			end
-			
+
 			rebuildScheduled = false
 		end)
 	end
@@ -395,20 +418,14 @@ function I2AS.new(name: string): IAS.Object
 	end
 	
 	function self:AddBind(mainKey: Enum.KeyCode, ...: Enum.KeyCode?)
-		if not isValidKeyCode(mainKey) then
-			warn(("Invalid KeyCode provided: %s"):format(tostring(mainKey)))
-			return
-		end
+		if not isValidKeyCode(mainKey) then return end
 		
 		local modifiers = {}
-		local var = { ... }
 		
-		for i = 1, #var do 
-			local mod = var[i]
+		for i = 1, select("#", ...) do
+			local mod = select(i, ...)
 			if mod and isValidKeyCode(mod) then
 				table.insert(modifiers, mod)
-			elseif mod then
-				warn(("Invalid modifier KeyCode: %s"):format(tostring(mod)))
 			end
 		end
 		
