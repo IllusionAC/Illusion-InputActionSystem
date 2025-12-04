@@ -186,17 +186,20 @@ function I2AS.new(name: string): IAS.Object
 	
 	local modifierToBindsMap: { [Enum.KeyCode]: {IAS.Bind} } = {}
 	
-	local function fire(active: boolean, pressed: boolean)
+	local function fire(active, pressed)
 		if not self.Enabled then return end
+		if pressed and active then
+			local now = time()
 
-		local now = time()
+			if self.Cooldown > 0 and now < self._CooldownUntil then
+				self.Active = false
+				self.Activated:Fire(false, true)
+				return
+			end
 
-		if active and self.Cooldown > 0 and now < self._CooldownUntil then
-			active = false
-		end
-
-		if active and pressed and self.Cooldown > 0 then
-			self._CooldownUntil = now + self.Cooldown
+			if self.Cooldown > 0 then
+				self._CooldownUntil = now + self.Cooldown
+			end
 		end
 
 		self.Active = active
@@ -281,64 +284,120 @@ function I2AS.new(name: string): IAS.Object
 				continue
 			end
 
+			local tapCompletedPending = false
+
 			local rbxConnection = action.StateChanged:Connect(function(pressed: boolean)
 				if not bindDataList then return end
-				
 				if not self.Enabled then return end
 
 				local anyBindSatisfied = false
-
 				for _, bindData in bindDataList do
 					local allModsPresent = true
 					for _, modKey in bindData.Modifier do
-						if modKey then
-							if not modifiersState[modKey] then
-								allModsPresent = false
-								break
-							end
+						if modKey and not modifiersState[modKey] then
+							allModsPresent = false
+							break
 						end
 					end
+					if allModsPresent then
+						anyBindSatisfied = true
+						break
+					end
+				end
 
-					if allModsPresent then anyBindSatisfied = true end
+				local function singleFire(activeState: boolean, pressedState: boolean)
+					if not self.Enabled then return end
+					self.Active = activeState
+					self.Activated:Fire(activeState, pressedState)
 				end
 
 				if pressed then
 					local now = time()
 
 					if self.TapRequired > 1 then
-						if now - self._LastTapTime > self.TapWindow then 
+						if now - self._LastTapTime > self.TapWindow then
 							self._TapCount = 0
 						end
 
-						self._TapCount += 1
+						self._TapCount = self._TapCount + 1
 						self._LastTapTime = now
 
 						if self._TapCount < self.TapRequired then return end
 
 						self._TapCount = 0
+						tapCompletedPending = true
+					else
+						tapCompletedPending = true
 					end
-				end
 
-				if self.Hold then
-					if not anyBindSatisfied and self.Active then
-						fire(false, false)
+					if not anyBindSatisfied then
+						tapCompletedPending = false
+						return
+					end
+					
+					local now2 = time()
+
+					if self.Hold then
+						if not anyBindSatisfied then
+							singleFire(self.Active, true)
+							return
+						end
+
+						if self.Cooldown > 0 and now2 < self._CooldownUntil then
+							singleFire(self.Active, true)
+							return
+						end
+
+						if self.Cooldown > 0 then
+							self._CooldownUntil = now2 + self.Cooldown
+						end
+
+						singleFire(true, true)
 						return
 					end
 
-					if anyBindSatisfied then
-						fire(pressed, pressed)
+					if not anyBindSatisfied then
+						singleFire(self._ToggleState, true)
+						return
 					end
 
-					return
-				end
+					if not self._ToggleState then
+						if self.Cooldown > 0 and now2 < self._CooldownUntil then
+							singleFire(false, true)
+							return
+						end
 
-				if pressed and anyBindSatisfied then
-					self._ToggleState = not self._ToggleState
-					fire(self._ToggleState, pressed)
-				elseif pressed and not anyBindSatisfied then 
+						self._ToggleState = true
+						self.Active = true
+
+						if self.Cooldown > 0 then
+							self._CooldownUntil = now2 + self.Cooldown
+						end
+
+						singleFire(true, true)
+						return
+					else
+						self._ToggleState = false
+						self.Active = false
+
+						singleFire(false, true)
+						return
+					end
+				else
+					if not tapCompletedPending then return end
+
+					if self.Hold then
+						if self.Active then
+							singleFire(false, false)
+						else
+							singleFire(self.Active, false)
+						end
+					else
+						singleFire(self._ToggleState, false)
+					end
+
+					tapCompletedPending = false
 					return
-				else 
-					fire(self._ToggleState, pressed) 
 				end
 			end)
 
