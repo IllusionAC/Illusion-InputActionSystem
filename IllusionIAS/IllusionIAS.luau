@@ -55,25 +55,6 @@ local function bindToString(bind: IAS.Bind): string
 	return table.concat(parts, ":")
 end
 
-local function bindsEqual(a: {IAS.Bind}, b: {IAS.Bind}): boolean
-	if #a ~= #b then return false end
-
-	local counts: {[string]: number} = {}
-
-	for _, bind in a do
-		local hash = bindToString(bind)
-		counts[hash] = (counts[hash] or 0) + 1
-	end
-
-	for _, bind in b do
-		local hash = bindToString(bind)
-		if not counts[hash] or counts[hash] == 0 then return false end
-		counts[hash] -= 1
-	end
-
-	return true
-end
-
 local function getBindsHash(binds: {IAS.Bind}): string
 	local hashes: {string} = {}
 	for _, bind in binds do table.insert(hashes, bindToString(bind)) end
