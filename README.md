@@ -24,6 +24,8 @@ SetUIButton(button: GuiButton?) -- nil by default, set a GuiButton as a secondar
 
 SetCooldown(cooldown: number) -- 0 by default, set a cooldown between each activation
 
+ResetCooldown() -- resets current cooldown for the bind
+
 SetEnabled(boolean) -- Enable or disable the bind
 
 IsEnable() -- returns bind’s enable state
@@ -98,6 +100,24 @@ end)
 walk.Activated:Connect(function(active, pressed) 
 	Humanoid.WalkSpeed = active and 8 or 16
 end)
+
+```
+#
+Exemple code: easiest way to add a bind with other settings
+```lua
+--!strict
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local I2AS = require(ReplicatedStorage.IllusionIAS)
+
+local Bind = I2AS.new("Bind")
+Bind:AddBind(Enum.KeyCode.F, Enum.KeyCode.LeftShift) -- you have to press leftshift and F to activate the bind (F is the main key)
+Bind:SetHold(false) -- when releasing, activation remains, you'll have to press the combination again
+Bind:SetCooldown(2) -- cooldown between each activation
+Bind:SetTapActivation(2,0.5) -- press twice the keys to activate (if it takes more than 0.5 seconds to press the second time, sink it
+
+Bind.Activated:Connect(function(active, pressed) 
+	print(active, pressed) -- will print the current activation and pressed state
+end) 
 
 ```
 #
