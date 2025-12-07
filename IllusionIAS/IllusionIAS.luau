@@ -147,7 +147,7 @@ function I2AS.new(name: string): IAS.Object
 		SetUIButton = function() end,
 		SetBinds = function() end,
 		SetCooldown = function() end,
-		ForceCooldownEnd = function() end,
+		ResetCooldown = function() end,
 		SetTapActivation = function() end,
 		SetEnabled = function() end,
 		IsEnabled = function() return true end,
@@ -402,7 +402,7 @@ function I2AS.new(name: string): IAS.Object
 		scheduleRebuild()
 	end
 	
-	function self:ForceCooldownEnd()
+	function self:ResetCooldown()
 		self._CooldownUntil = 0
 	end
 
