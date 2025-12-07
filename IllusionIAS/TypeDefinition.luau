@@ -66,7 +66,7 @@ export type Object = {
 	SetUIButton: (self: Object, button: GuiButton?) -> (),
 	SetBinds: (self: Object, binds: { Bind }) -> (),
 	SetCooldown: (self: Object, cooldown: number) -> (),
-	ForceCooldownEnd: (self: Object) -> (),
+	ResetCooldown: (self: Object) -> (),
 	SetTapActivation: (self: Object, requiredTaps: number, tapWindow: number) -> (),
 	SetEnabled: (self: Object, enabled: boolean) -> (),
 	IsEnabled: (self: Object) -> boolean,
