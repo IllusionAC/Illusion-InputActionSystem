@@ -174,7 +174,6 @@ function I2AS.new(name: string): IAS.Object
 		self.Activated:Fire(active, pressed)
 	end
 
-
 	local function rebuild()
 		clearConnections(stateConnections)
 
@@ -272,12 +271,6 @@ function I2AS.new(name: string): IAS.Object
 					end
 				end
 
-				local function singleFire(activeState: boolean, pressedState: boolean)
-					if not self.Enabled then return end
-					self.Active = activeState
-					self.Activated:Fire(activeState, pressedState)
-				end
-
 				if pressed then
 					local now = time()
 
@@ -307,7 +300,7 @@ function I2AS.new(name: string): IAS.Object
 
 					if self.Hold then
 						if self.Cooldown > 0 and now < self._CooldownUntil then
-							singleFire(self.Active, true)
+							fire(self.Active, true)
 							return
 						end
 
@@ -315,13 +308,13 @@ function I2AS.new(name: string): IAS.Object
 							self._CooldownUntil = now + self.Cooldown
 						end
 
-						singleFire(true, true)
+						fire(true, true)
 						return
 					end
 
 					if not self._ToggleState then
 						if self.Cooldown > 0 and now < self._CooldownUntil then
-							singleFire(false, true)
+							fire(false, true)
 							return
 						end
 
@@ -332,13 +325,13 @@ function I2AS.new(name: string): IAS.Object
 							self._CooldownUntil = now + self.Cooldown
 						end
 
-						singleFire(true, true)
+						fire(true, true)
 						return
 					end
 
 					self._ToggleState = false
 					self.Active = false
-					singleFire(false, true)
+					fire(false, true)
 					return
 				end
 
@@ -347,12 +340,12 @@ function I2AS.new(name: string): IAS.Object
 
 				if self.Hold then
 					if self.Active then
-						singleFire(false, false)
+						fire(false, false)
 					else
-						singleFire(self.Active, false)
+						fire(self.Active, false)
 					end
 				else
-					singleFire(self._ToggleState, false)
+					fire(self._ToggleState, false)
 				end
 			end)
 
