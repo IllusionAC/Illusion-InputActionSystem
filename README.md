@@ -12,7 +12,7 @@
 ### DOCUMENTATION: Current available methods and attributes:
 #
 >Methods:
-```
+```luau
 IAS.new(name: string) -- create and name a new bind.
 IAS.Get(name: string?) -- returns the bind's table
 IAS.GetAll() -- returns the entire IAS table
@@ -51,7 +51,7 @@ Destroy() -- delete the bind
 ```
 ---
 >Attributes:
-```lua
+```luau
 Keybind.Name -- Name defined in .new() attribute
 
 Keybind.Active -- State of the Keybind (activated or deactivated)
@@ -72,7 +72,7 @@ IIAS uses an other module of mine, [IllusionSignal](https://github.com/IllusionA
 #
 ---
 Exemple code: two keybinds changing Humanoid walkspeed
-```lua
+```luau
 --!strict
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
@@ -104,7 +104,7 @@ end)
 ```
 #
 Exemple code: easiest way to add a bind with other settings
-```lua
+```luau
 --!strict
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local I2AS = require(ReplicatedStorage.IllusionIAS)
