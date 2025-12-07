@@ -147,6 +147,7 @@ function I2AS.new(name: string): IAS.Object
 		SetUIButton = function() end,
 		SetBinds = function() end,
 		SetCooldown = function() end,
+		ForceCooldownEnd = function() end,
 		SetTapActivation = function() end,
 		SetEnabled = function() end,
 		IsEnabled = function() return true end,
@@ -167,25 +168,12 @@ function I2AS.new(name: string): IAS.Object
 	
 	local modifierToBindsMap: { [Enum.KeyCode]: {IAS.Bind} } = {}
 	
-	local function fire(active, pressed)
+	local function fire(active: boolean, pressed: boolean)
 		if not self.Enabled then return end
-		if pressed and active then
-			local now = time()
-
-			if self.Cooldown > 0 and now < self._CooldownUntil then
-				self.Active = false
-				self.Activated:Fire(false, true)
-				return
-			end
-
-			if self.Cooldown > 0 then
-				self._CooldownUntil = now + self.Cooldown
-			end
-		end
-
 		self.Active = active
 		self.Activated:Fire(active, pressed)
 	end
+
 
 	local function rebuild()
 		clearConnections(stateConnections)
@@ -212,20 +200,18 @@ function I2AS.new(name: string): IAS.Object
 		end
 
 		local createdActions: { [string]: boolean } = {}
-
-		for keyEnum, _ in bindLookup do
-			if not createdActions[keyEnum.Name] then
-				createAction(keyEnum, InputContext, self.UIButton)
-				createdActions[keyEnum.Name] = true
+		
+		local function setUIButton(givenTable: { [Enum.KeyCode]: boolean } | { [Enum.KeyCode]: {IAS.Bind} })
+			for keyEnum, _ in givenTable do
+				if not createdActions[keyEnum.Name] then
+					createAction(keyEnum, InputContext, self.UIButton)
+					createdActions[keyEnum.Name] = true
+				end
 			end
 		end
 
-		for modEnum, _ in modifierKeysSet do
-			if not createdActions[modEnum.Name] then
-				createAction(modEnum, InputContext, self.UIButton)
-				createdActions[modEnum.Name] = true
-			end
-		end
+		setUIButton(bindLookup)
+		setUIButton(modifierKeysSet)
 
 		for _, action in InputContext:GetChildren() do
 			if not action:IsA("InputAction") then continue end
@@ -300,10 +286,13 @@ function I2AS.new(name: string): IAS.Object
 							self._TapCount = 0
 						end
 
-						self._TapCount = self._TapCount + 1
+						self._TapCount += 1
 						self._LastTapTime = now
 
-						if self._TapCount < self.TapRequired then return end
+						if self._TapCount < self.TapRequired then
+							tapCompletedPending = false
+							return
+						end
 
 						self._TapCount = 0
 						tapCompletedPending = true
@@ -315,35 +304,23 @@ function I2AS.new(name: string): IAS.Object
 						tapCompletedPending = false
 						return
 					end
-					
-					local now2 = time()
 
 					if self.Hold then
-						if not anyBindSatisfied then
-							singleFire(self.Active, true)
-							return
-						end
-
-						if self.Cooldown > 0 and now2 < self._CooldownUntil then
+						if self.Cooldown > 0 and now < self._CooldownUntil then
 							singleFire(self.Active, true)
 							return
 						end
 
 						if self.Cooldown > 0 then
-							self._CooldownUntil = now2 + self.Cooldown
+							self._CooldownUntil = now + self.Cooldown
 						end
 
 						singleFire(true, true)
 						return
 					end
 
-					if not anyBindSatisfied then
-						singleFire(self._ToggleState, true)
-						return
-					end
-
 					if not self._ToggleState then
-						if self.Cooldown > 0 and now2 < self._CooldownUntil then
+						if self.Cooldown > 0 and now < self._CooldownUntil then
 							singleFire(false, true)
 							return
 						end
@@ -352,33 +329,30 @@ function I2AS.new(name: string): IAS.Object
 						self.Active = true
 
 						if self.Cooldown > 0 then
-							self._CooldownUntil = now2 + self.Cooldown
+							self._CooldownUntil = now + self.Cooldown
 						end
 
 						singleFire(true, true)
 						return
-					else
-						self._ToggleState = false
-						self.Active = false
+					end
 
-						singleFire(false, true)
-						return
+					self._ToggleState = false
+					self.Active = false
+					singleFire(false, true)
+					return
+				end
+
+				if not tapCompletedPending then return end
+				tapCompletedPending = false
+
+				if self.Hold then
+					if self.Active then
+						singleFire(false, false)
+					else
+						singleFire(self.Active, false)
 					end
 				else
-					if not tapCompletedPending then return end
-
-					if self.Hold then
-						if self.Active then
-							singleFire(false, false)
-						else
-							singleFire(self.Active, false)
-						end
-					else
-						singleFire(self._ToggleState, false)
-					end
-
-					tapCompletedPending = false
-					return
+					singleFire(self._ToggleState, false)
 				end
 			end)
 
@@ -426,6 +400,10 @@ function I2AS.new(name: string): IAS.Object
 	function self:SetCooldown(cooldown: number)
 		self.Cooldown = math.max(0, cooldown)
 		scheduleRebuild()
+	end
+	
+	function self:ForceCooldownEnd()
+		self._CooldownUntil = 0
 	end
 
 	function self:SetTapActivation(requiredTaps: number, tapWindow: number)
