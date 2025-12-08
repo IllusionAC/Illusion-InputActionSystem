@@ -12,7 +12,7 @@
 ### DOCUMENTATION: Current available methods and attributes:
 #
 >Methods:
-```
+```luau
 IAS.new(name: string) -- create and name a new bind.
 IAS.Get(name: string?) -- returns the bind's table
 IAS.GetAll() -- returns the entire IAS table
@@ -59,7 +59,7 @@ Destroy() -- delete the bind
 ```
 ---
 >Attributes:
-```lua
+```luau
 Keybind.Name -- Name defined in .new() attribute
 
 Keybind.Active -- State of the Keybind (activated or deactivated)
