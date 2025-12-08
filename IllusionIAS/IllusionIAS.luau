@@ -127,7 +127,9 @@ function I2AS.new(name: string): IAS.Object
 		Active = false,
 		_ToggleState = false,
 		
-		Enabled = true,
+		Enabled = InputContext.Enabled,
+		Priority = InputContext.Priority,
+		Sink = InputContext.Sink,
 		
 		Cooldown = 0,
 		_PrevCooldown = 0,
@@ -151,8 +153,12 @@ function I2AS.new(name: string): IAS.Object
 		SetTapActivation = function() end,
 		SetEnabled = function() end,
 		IsEnabled = function() return true end,
+		SetPriority = function() end,
+		GetPriority = function() return 1000 end,
+		SetSink = function() end,
+		GetSink = function() return false end,
+		
 		GetBinds = function(): {IAS.Bind} return {} end,
-
 		AddBind = function() end,
 		SetBind = function() end,
 		RemoveBind = function() end,
@@ -173,187 +179,22 @@ function I2AS.new(name: string): IAS.Object
 		self.Active = active
 		self.Activated:Fire(active, pressed)
 	end
-
-	local function rebuild()
-		clearConnections(stateConnections)
-
-		for _, child in InputContext:GetChildren() do child:Destroy() end
-
-		modifiersState = {}
-		modifierToBindsMap = {}
-
-		local bindLookup: { [Enum.KeyCode]: {IAS.Bind} } = {}
-		local modifierKeysSet: { [Enum.KeyCode]: boolean } = {}
-
-		for _, b in self.Binds do
-			bindLookup[b.KeyCode] = bindLookup[b.KeyCode] or {}
-			table.insert(bindLookup[b.KeyCode], b)
-			
-			for _, m in b.Modifier do
-				if m and isValidKeyCode(m) then
-					modifierKeysSet[m] = true
-					modifierToBindsMap[m] = modifierToBindsMap[m] or {}
-					table.insert(modifierToBindsMap[m], b)
-				end
-			end
+	
+	local function validateCooldown(now: number)
+		if self.Cooldown > 0 and now < self._CooldownUntil then
+			return false
 		end
-
-		local createdActions: { [string]: boolean } = {}
-		
-		local function setUIButton(givenTable: { [Enum.KeyCode]: boolean } | { [Enum.KeyCode]: {IAS.Bind} })
-			for keyEnum, _ in givenTable do
-				if not createdActions[keyEnum.Name] then
-					createAction(keyEnum, InputContext, self.UIButton)
-					createdActions[keyEnum.Name] = true
-				end
-			end
-		end
-
-		setUIButton(bindLookup)
-		setUIButton(modifierKeysSet)
-
-		for _, action in InputContext:GetChildren() do
-			if not action:IsA("InputAction") then continue end
-
-			local keyEnum = Enum.KeyCode:FromName(action.Name)
-			if not keyEnum then continue end
-
-			local bindDataList = bindLookup[keyEnum]
-			local isModifier = (bindDataList == nil)
-
-			if isModifier then
-				local rbxConnection = action.StateChanged:Connect(function(pressed: boolean)
-					modifiersState[keyEnum] = pressed
-
-					if self.Hold and not pressed and self.Active then
-						local affectedBinds = modifierToBindsMap[keyEnum]
-						if affectedBinds then
-							for _, bind in affectedBinds do
-								local allModsStillPressed = true
-								for _, modKey in bind.Modifier do
-									if modKey and not modifiersState[modKey] then
-										allModsStillPressed = false
-										break
-									end
-								end
-								
-								if not allModsStillPressed then
-									fire(false, false)
-									break
-								end
-							end
-						end
-					end
-				end)
-				
-				table.insert(stateConnections, rbxConnection)
-				continue
-			end
-
-			local tapCompletedPending = false
-
-			local rbxConnection = action.StateChanged:Connect(function(pressed: boolean)
-				if not bindDataList then return end
-				if not self.Enabled then return end
-
-				local anyBindSatisfied = false
-				for _, bindData in bindDataList do
-					local allModsPresent = true
-					for _, modKey in bindData.Modifier do
-						if modKey and not modifiersState[modKey] then
-							allModsPresent = false
-							break
-						end
-					end
-					if allModsPresent then
-						anyBindSatisfied = true
-						break
-					end
-				end
-
-				if pressed then
-					local now = time()
-
-					if self.TapRequired > 1 then
-						if now - self._LastTapTime > self.TapWindow then
-							self._TapCount = 0
-						end
-
-						self._TapCount += 1
-						self._LastTapTime = now
-
-						if self._TapCount < self.TapRequired then
-							tapCompletedPending = false
-							return
-						end
-
-						self._TapCount = 0
-						tapCompletedPending = true
-					else
-						tapCompletedPending = true
-					end
-
-					if not anyBindSatisfied then
-						tapCompletedPending = false
-						return
-					end
-
-					if self.Hold then
-						if self.Cooldown > 0 and now < self._CooldownUntil then
-							fire(self.Active, true)
-							return
-						end
-
-						if self.Cooldown > 0 then
-							self._CooldownUntil = now + self.Cooldown
-						end
-
-						fire(true, true)
-						return
-					end
-
-					if not self._ToggleState then
-						if self.Cooldown > 0 and now < self._CooldownUntil then
-							fire(false, true)
-							return
-						end
-
-						self._ToggleState = true
-						self.Active = true
-
-						if self.Cooldown > 0 then
-							self._CooldownUntil = now + self.Cooldown
-						end
-
-						fire(true, true)
-						return
-					end
-
-					self._ToggleState = false
-					self.Active = false
-					fire(false, true)
-					return
-				end
-
-				if not tapCompletedPending then return end
-				tapCompletedPending = false
-
-				if self.Hold then
-					if self.Active then
-						fire(false, false)
-					else
-						fire(self.Active, false)
-					end
-				else
-					fire(self._ToggleState, false)
-				end
-			end)
-
-			table.insert(stateConnections, rbxConnection)
+		self._CooldownUntil = now + self.Cooldown
+		return true
+	end
+	
+	local function setCooldown(now: number)
+		if self.Cooldown > 0 then
+			self._CooldownUntil = self.Cooldown + now
 		end
 	end
 
-	local function scheduleRebuild()
+	local function rebuild()
 		if rebuildScheduled then return end
 		rebuildScheduled = true
 		task.defer(function()
@@ -373,7 +214,177 @@ function I2AS.new(name: string): IAS.Object
 				self._PrevTapRequired = self.TapRequired
 				self._PrevTapWindow = self.TapWindow
 
-				rebuild()
+				clearConnections(stateConnections)
+
+				for _, child in InputContext:GetChildren() do child:Destroy() end
+
+				modifiersState = {}
+				modifierToBindsMap = {}
+
+				local bindLookup: { [Enum.KeyCode]: {IAS.Bind} } = {}
+				local modifierKeysSet: { [Enum.KeyCode]: boolean } = {}
+
+				for _, b in self.Binds do
+					bindLookup[b.KeyCode] = bindLookup[b.KeyCode] or {}
+					table.insert(bindLookup[b.KeyCode], b)
+
+					for _, m in b.Modifier do
+						if m and isValidKeyCode(m) then
+							modifierKeysSet[m] = true
+							modifierToBindsMap[m] = modifierToBindsMap[m] or {}
+							table.insert(modifierToBindsMap[m], b)
+						end
+					end
+				end
+
+				local createdActions: { [string]: boolean } = {}
+
+				local function setUIButton(givenTable: { [Enum.KeyCode]: boolean } | { [Enum.KeyCode]: {IAS.Bind} })
+					for keyEnum, _ in givenTable do
+						if not createdActions[keyEnum.Name] then
+							createAction(keyEnum, InputContext, self.UIButton)
+							createdActions[keyEnum.Name] = true
+						end
+					end
+				end
+
+				setUIButton(bindLookup)
+				setUIButton(modifierKeysSet)
+
+				for _, action in InputContext:GetChildren() do
+					if not action:IsA("InputAction") then continue end
+
+					local keyEnum = Enum.KeyCode:FromName(action.Name)
+					if not keyEnum then continue end
+
+					local bindDataList = bindLookup[keyEnum]
+					local isModifier = (bindDataList == nil)
+
+					if isModifier then
+						local rbxConnection = action.StateChanged:Connect(function(pressed: boolean)
+							modifiersState[keyEnum] = pressed
+
+							if self.Hold and not pressed and self.Active then
+								local affectedBinds = modifierToBindsMap[keyEnum]
+								if affectedBinds then
+									for _, bind in affectedBinds do
+										local allModsStillPressed = true
+										for _, modKey in bind.Modifier do
+											if modKey and not modifiersState[modKey] then
+												allModsStillPressed = false
+												break
+											end
+										end
+
+										if not allModsStillPressed then
+											fire(false, false)
+											break
+										end
+									end
+								end
+							end
+						end)
+
+						table.insert(stateConnections, rbxConnection)
+						continue
+					end
+
+					local tapCompletedPending = false
+
+					local rbxConnection = action.StateChanged:Connect(function(pressed: boolean)
+						if not bindDataList then return end
+						if not self.Enabled then return end
+
+						local anyBindSatisfied = false
+						for _, bindData in bindDataList do
+							local allModsPresent = true
+							for _, modKey in bindData.Modifier do
+								if modKey and not modifiersState[modKey] then
+									allModsPresent = false
+									break
+								end
+							end
+							if allModsPresent then
+								anyBindSatisfied = true
+								break
+							end
+						end
+
+						if pressed then
+							local now = time()
+
+							if self.TapRequired > 1 then
+								if now - self._LastTapTime > self.TapWindow then
+									self._TapCount = 0
+								end
+
+								self._TapCount += 1
+								self._LastTapTime = now
+
+								if self._TapCount < self.TapRequired then
+									tapCompletedPending = false
+									return
+								end
+
+								self._TapCount = 0
+							end
+							
+							tapCompletedPending = true
+
+							if not anyBindSatisfied then
+								tapCompletedPending = false
+								return
+							end
+
+							if self.Hold then
+								if validateCooldown(now) then
+									fire(self.Active, true)
+									return
+								end
+
+								setCooldown(now)
+
+								fire(true, true)
+								return
+							end
+
+							if not self._ToggleState then
+								if validateCooldown(now) then
+									fire(false, true)
+									return
+								end
+
+								self._ToggleState = true
+								self.Active = true
+								
+								setCooldown(now)
+
+								fire(true, true)
+								return
+							end
+
+							self._ToggleState = false
+							self.Active = false
+							fire(false, true)
+							return
+						end
+
+						if not tapCompletedPending then return end
+						tapCompletedPending = false
+
+						if self.Hold then
+							if self.Active then
+								fire(false, false)
+							else
+								fire(self.Active, false)
+							end
+						else
+							fire(self._ToggleState, false)
+						end
+					end)
+
+					table.insert(stateConnections, rbxConnection)
+				end
 			end
 
 			rebuildScheduled = false
@@ -382,17 +393,17 @@ function I2AS.new(name: string): IAS.Object
 
 	function self:SetHold(hold: boolean)
 		self.Hold = hold
-		scheduleRebuild()
+		rebuild()
 	end
 
 	function self:SetUIButton(button: GuiButton?)
 		self.UIButton = button
-		scheduleRebuild()
+		rebuild()
 	end
 	
 	function self:SetCooldown(cooldown: number)
 		self.Cooldown = math.max(0, cooldown)
-		scheduleRebuild()
+		rebuild()
 	end
 	
 	function self:ResetCooldown()
@@ -408,7 +419,7 @@ function I2AS.new(name: string): IAS.Object
 
 		self._TapCount = 0
 		self._LastTapTime = 0
-		scheduleRebuild()
+		rebuild()
 	end
 	
 	function self:SetEnabled(enabled: boolean)
@@ -418,10 +429,30 @@ function I2AS.new(name: string): IAS.Object
 			self.Active = false
 			self.Activated:Fire(false, false)
 		end
+		
+		InputContext.Enabled = self.Enabled
 	end
 	
-	function self:IsEnabled(): boolean
+	function self:IsEnabled()
 		return self.Enabled
+	end
+	
+	function self:SetPriority(number)
+		self.Priority = number
+		InputContext.Priority = self.Priority
+	end
+	
+	function self:GetPriority()
+		return self.Priority
+	end
+	
+	function self:SetSink(boolean)
+		self.Sink = boolean
+		InputContext.Sink = self.Sink
+	end
+	
+	function self:GetSink()
+		return self.Sink
 	end
 	
 	function self:GetBinds(): {IAS.Bind}
@@ -449,7 +480,7 @@ function I2AS.new(name: string): IAS.Object
 		end
 		
 		table.insert(self.Binds, { KeyCode = mainKey, Modifier = modifiers })
-		scheduleRebuild()
+		rebuild()
 	end
 	
 	function self:SetBinds(binds: {IAS.Bind})
@@ -467,7 +498,7 @@ function I2AS.new(name: string): IAS.Object
 		end
 		
 		self.Binds = deepCloneBinds(validBinds)
-		scheduleRebuild()
+		rebuild()
 	end
 	
 	function self:SetBind(mainKey: Enum.KeyCode, ...: Enum.KeyCode?)
@@ -494,7 +525,7 @@ function I2AS.new(name: string): IAS.Object
 			local bind = self.Binds[i]
 			if bind.KeyCode == mainKey and modifiersEqualSet(bind.Modifier, modifiers) then
 				table.remove(self.Binds, i)
-				scheduleRebuild()
+				rebuild()
 				return
 			end
 		end
@@ -502,13 +533,15 @@ function I2AS.new(name: string): IAS.Object
 
 	function self:ClearBinds()
 		table.clear(self.Binds)
-		scheduleRebuild()
+		rebuild()
 	end
 
 	function self:Destroy()
 		clearConnections(stateConnections)
 		table.clear(modifiersState)
 		table.clear(modifierToBindsMap)
+		
+		self.Activated:DisconnectAll()
 
 		if InputContext and InputContext.Parent then
 			for _, child in InputContext:GetChildren() do child:Destroy() end
