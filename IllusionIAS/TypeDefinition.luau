@@ -47,6 +47,8 @@ export type Object = {
 	_ToggleState: boolean,
 
 	Enabled: boolean,
+	Priority: number,
+	Sink: boolean,
 
 	Cooldown: number,
 	_PrevCooldown: number,
@@ -70,8 +72,12 @@ export type Object = {
 	SetTapActivation: (self: Object, requiredTaps: number, tapWindow: number) -> (),
 	SetEnabled: (self: Object, enabled: boolean) -> (),
 	IsEnabled: (self: Object) -> boolean,
+	SetPriority: (self: Object, number: number) -> (),
+	GetPriority: (self: Object) -> (number),
+	SetSink: (self: Object, boolean: boolean) -> (),
+	GetSink: (self: Object) -> (boolean),
+	
 	GetBinds: (self: Object) -> {Bind},
-
 	AddBind: (self: Object, mainKey: Enum.KeyCode, ...(Enum.KeyCode?)) -> (),
 	SetBind: (self: Object, mainKey:  Enum.KeyCode, ...(Enum.KeyCode?)) -> (),
 	RemoveBind: (self: Object, mainKey: Enum.KeyCode, ...(Enum.KeyCode?)) -> (),
