@@ -12,7 +12,7 @@
 ### DOCUMENTATION: Current available methods and attributes:
 #
 >Methods:
-```luau
+```
 IAS.new(name: string) -- create and name a new bind.
 IAS.Get(name: string?) -- returns the bind's table
 IAS.GetAll() -- returns the entire IAS table
@@ -29,6 +29,14 @@ ResetCooldown() -- resets current cooldown for the bind
 SetEnabled(boolean) -- Enable or disable the bind
 
 IsEnable() -- returns bind’s enable state
+
+SetPriority(number) -- set InputContext's Priority
+
+GetPriority() -- get InputContext's Priority
+
+SetSink(boolean) -- set InputContext's Sinkability 
+
+GetSink() -- get InputContext's Sinkability 
 
 GetBinds() -- returns a list of all the keybinds of the bind
 
@@ -51,12 +59,16 @@ Destroy() -- delete the bind
 ```
 ---
 >Attributes:
-```luau
+```lua
 Keybind.Name -- Name defined in .new() attribute
 
 Keybind.Active -- State of the Keybind (activated or deactivated)
 
 Keybind.Enabled --  Bind is enabled or disabled (not to confound with Active)
+
+Keybind.Priority -- InputContext's Priority
+
+Keybind.Sink -- InputContext's Sinkability
 
 Keybind.Hold -- Holding state defined in :SetHold() method
 
