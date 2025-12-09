@@ -116,33 +116,22 @@ function I2AS.new(name: string): IAS.Object
 		Name = name,
 		
 		Hold = true,
-		_PrevHold = true,
 
 		Binds = {},
-		_PrevBindsHash = "",
 
 		UIButton = nil,
-		_PrevUIButton = nil,
-		
+
 		Active = false,
-		_ToggleState = false,
 		
-		Enabled = InputContext.Enabled,
-		Priority = InputContext.Priority,
-		Sink = InputContext.Sink,
+		Enabled = true,
+		Priority = 1000,
+		Sink = false,
 		
 		Cooldown = 0,
-		_PrevCooldown = 0,
-		_CooldownUntil = 0,
 
 		TapRequired = 1,
 		TapWindow = 0,
-		_PrevTapRequired = 1,
-		_PrevTapWindow = 0,
-		
-		_LastTapTime = 0,
-		_TapCount = 0,
-		
+
 		Activated = IASignal.new(),
 		
 		SetHold = function() end,
@@ -153,12 +142,12 @@ function I2AS.new(name: string): IAS.Object
 		SetTapActivation = function() end,
 		SetEnabled = function() end,
 		IsEnabled = function() return true end,
+		GetBinds = function(): {IAS.Bind} return {} end,
 		SetPriority = function() end,
 		GetPriority = function() return 1000 end,
 		SetSink = function() end,
 		GetSink = function() return false end,
-		
-		GetBinds = function(): {IAS.Bind} return {} end,
+
 		AddBind = function() end,
 		SetBind = function() end,
 		RemoveBind = function() end,
@@ -167,6 +156,17 @@ function I2AS.new(name: string): IAS.Object
 		
 		Destroy = function() end,
 	}
+
+	local _PrevHold = true
+	local _PrevBindsHash = ""
+	local _PrevUIButton = nil
+	local _PrevCooldown = 0
+	local _PrevTapRequired = 1
+	local _PrevTapWindow = 0
+	local _ToggleState = false
+	local _CooldownUntil = 0
+	local _LastTapTime = 0
+	local _TapCount = 0
 
 	local modifiersState = {}
 	local stateConnections: { RBXScriptConnection } = {}
@@ -179,20 +179,6 @@ function I2AS.new(name: string): IAS.Object
 		self.Active = active
 		self.Activated:Fire(active, pressed)
 	end
-	
-	local function validateCooldown(now: number)
-		if self.Cooldown > 0 and now < self._CooldownUntil then
-			return false
-		end
-		self._CooldownUntil = now + self.Cooldown
-		return true
-	end
-	
-	local function setCooldown(now: number)
-		if self.Cooldown > 0 then
-			self._CooldownUntil = self.Cooldown + now
-		end
-	end
 
 	local function rebuild()
 		if rebuildScheduled then return end
@@ -200,19 +186,19 @@ function I2AS.new(name: string): IAS.Object
 		task.defer(function()
 			local currentHash = getBindsHash(self.Binds)
 
-			if not (currentHash == self._PrevBindsHash
-				and self.UIButton == self._PrevUIButton
-				and self.Hold == self._PrevHold
-				and self.Cooldown == self._PrevCooldown
-				and self.TapRequired == self._PrevTapRequired
-				and self.TapWindow == self._PrevTapWindow) then
+			if not (currentHash == _PrevBindsHash
+				and self.UIButton == _PrevUIButton
+				and self.Hold == _PrevHold
+				and self.Cooldown == _PrevCooldown
+				and self.TapRequired == _PrevTapRequired
+				and self.TapWindow == _PrevTapWindow) then
 
-				self._PrevBindsHash = currentHash
-				self._PrevUIButton = self.UIButton
-				self._PrevHold = self.Hold
-				self._PrevCooldown = self.Cooldown
-				self._PrevTapRequired = self.TapRequired
-				self._PrevTapWindow = self.TapWindow
+				_PrevBindsHash = currentHash
+				_PrevUIButton = self.UIButton
+				_PrevHold = self.Hold
+				_PrevCooldown = self.Cooldown
+				_PrevTapRequired = self.TapRequired
+				_PrevTapWindow = self.TapWindow
 
 				clearConnections(stateConnections)
 
@@ -314,22 +300,23 @@ function I2AS.new(name: string): IAS.Object
 							local now = time()
 
 							if self.TapRequired > 1 then
-								if now - self._LastTapTime > self.TapWindow then
-									self._TapCount = 0
+								if now - _LastTapTime > self.TapWindow then
+									_TapCount = 0
 								end
 
-								self._TapCount += 1
-								self._LastTapTime = now
+								_TapCount += 1
+								_LastTapTime = now
 
-								if self._TapCount < self.TapRequired then
+								if _TapCount < self.TapRequired then
 									tapCompletedPending = false
 									return
 								end
 
-								self._TapCount = 0
+								_TapCount = 0
+								tapCompletedPending = true
+							else
+								tapCompletedPending = true
 							end
-							
-							tapCompletedPending = true
 
 							if not anyBindSatisfied then
 								tapCompletedPending = false
@@ -337,33 +324,37 @@ function I2AS.new(name: string): IAS.Object
 							end
 
 							if self.Hold then
-								if validateCooldown(now) then
+								if self.Cooldown > 0 and now < _CooldownUntil then
 									fire(self.Active, true)
 									return
 								end
 
-								setCooldown(now)
+								if self.Cooldown > 0 then
+									_CooldownUntil = now + self.Cooldown
+								end
 
 								fire(true, true)
 								return
 							end
 
-							if not self._ToggleState then
-								if validateCooldown(now) then
+							if not _ToggleState then
+								if self.Cooldown > 0 and now < _CooldownUntil then
 									fire(false, true)
 									return
 								end
 
-								self._ToggleState = true
+								_ToggleState = true
 								self.Active = true
-								
-								setCooldown(now)
+
+								if self.Cooldown > 0 then
+									_CooldownUntil = now + self.Cooldown
+								end
 
 								fire(true, true)
 								return
 							end
 
-							self._ToggleState = false
+							_ToggleState = false
 							self.Active = false
 							fire(false, true)
 							return
@@ -379,7 +370,7 @@ function I2AS.new(name: string): IAS.Object
 								fire(self.Active, false)
 							end
 						else
-							fire(self._ToggleState, false)
+							fire(_ToggleState, false)
 						end
 					end)
 
@@ -407,7 +398,7 @@ function I2AS.new(name: string): IAS.Object
 	end
 	
 	function self:ResetCooldown()
-		self._CooldownUntil = 0
+		_CooldownUntil = 0
 	end
 
 	function self:SetTapActivation(requiredTaps: number, tapWindow: number)
@@ -417,8 +408,8 @@ function I2AS.new(name: string): IAS.Object
 		self.TapRequired = requiredTaps
 		self.TapWindow = tapWindow
 
-		self._TapCount = 0
-		self._LastTapTime = 0
+		_TapCount = 0
+		_LastTapTime = 0
 		rebuild()
 	end
 	
@@ -433,7 +424,7 @@ function I2AS.new(name: string): IAS.Object
 		InputContext.Enabled = self.Enabled
 	end
 	
-	function self:IsEnabled()
+	function self:IsEnabled(): boolean
 		return self.Enabled
 	end
 	
@@ -441,16 +432,16 @@ function I2AS.new(name: string): IAS.Object
 		self.Priority = number
 		InputContext.Priority = self.Priority
 	end
-	
+
 	function self:GetPriority()
 		return self.Priority
 	end
-	
+
 	function self:SetSink(boolean)
 		self.Sink = boolean
 		InputContext.Sink = self.Sink
 	end
-	
+
 	function self:GetSink()
 		return self.Sink
 	end
@@ -542,7 +533,7 @@ function I2AS.new(name: string): IAS.Object
 		table.clear(modifierToBindsMap)
 		
 		self.Activated:DisconnectAll()
-
+		
 		if InputContext and InputContext.Parent then
 			for _, child in InputContext:GetChildren() do child:Destroy() end
 			InputContext:Destroy()
