@@ -35,32 +35,21 @@ export type Object = {
 	Name: string,
 	
 	Hold: boolean,
-	_PrevHold: boolean,
 
 	Binds: { Bind },
-	_PrevBindsHash: string,
 
 	UIButton: GuiButton?,
-	_PrevUIButton: GuiButton?,
-	
+
 	Active: boolean,
-	_ToggleState: boolean,
 
 	Enabled: boolean,
 	Priority: number,
 	Sink: boolean,
 
 	Cooldown: number,
-	_PrevCooldown: number,
-	_CooldownUntil: number,
 
 	TapRequired: number,
 	TapWindow: number,
-	_PrevTapRequired: number,
-	_PrevTapWindow: number,
-
-	_LastTapTime: number,
-	_TapCount: number,
 
 	Activated: IAScriptSignal,
 	
@@ -76,8 +65,8 @@ export type Object = {
 	GetPriority: (self: Object) -> (number),
 	SetSink: (self: Object, boolean: boolean) -> (),
 	GetSink: (self: Object) -> (boolean),
-	
 	GetBinds: (self: Object) -> {Bind},
+
 	AddBind: (self: Object, mainKey: Enum.KeyCode, ...(Enum.KeyCode?)) -> (),
 	SetBind: (self: Object, mainKey:  Enum.KeyCode, ...(Enum.KeyCode?)) -> (),
 	RemoveBind: (self: Object, mainKey: Enum.KeyCode, ...(Enum.KeyCode?)) -> (),
