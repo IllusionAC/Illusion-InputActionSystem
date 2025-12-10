@@ -92,7 +92,7 @@ end
 
 local function clearConnections(stateConnections: {RBXScriptConnection}?)
 	if not stateConnections then return end
-	
+
 	for i = #stateConnections, 1, -1 do
 		local c = stateConnections[i]
 		if c and c.Connected then c:Disconnect() end
@@ -114,7 +114,7 @@ function I2AS.new(name: string): IAS.Object
 
 	local self: IAS.Object = {
 		Name = name,
-		
+
 		Hold = true,
 
 		Binds = {},
@@ -122,18 +122,21 @@ function I2AS.new(name: string): IAS.Object
 		UIButton = nil,
 
 		Active = false,
-		
+
 		Enabled = true,
 		Priority = 1000,
 		Sink = false,
-		
+
 		Cooldown = 0,
 
 		TapRequired = 1,
 		TapWindow = 0,
+		
+		InputBufferEnabled = false,
+		InputBufferTime = 0.15,
 
 		Activated = IASignal.new(),
-		
+
 		SetHold = function() end,
 		SetUIButton = function() end,
 		SetBinds = function() end,
@@ -147,13 +150,15 @@ function I2AS.new(name: string): IAS.Object
 		GetPriority = function() return 1000 end,
 		SetSink = function() end,
 		GetSink = function() return false end,
+		SetInputBufferEnabled = function() end,
+		SetInputBufferTime = function() end,
 
 		AddBind = function() end,
 		SetBind = function() end,
 		RemoveBind = function() end,
 		EditBind = function() end,
 		ClearBinds = function() end,
-		
+
 		Destroy = function() end,
 	}
 
@@ -167,21 +172,91 @@ function I2AS.new(name: string): IAS.Object
 	local _CooldownUntil = 0
 	local _LastTapTime = 0
 	local _TapCount = 0
+	local _ActiveBindCount = 0
 
-	local modifiersState = {}
+	local _ActiveMainKey: Enum.KeyCode? = nil
+	local _Buffered = false
+	local _BufferedTime = 0
+	local _BufferedKey: Enum.KeyCode? = nil
+
+	local modifiersState: { [Enum.KeyCode]: boolean } = {}
 	local stateConnections: { RBXScriptConnection } = {}
 	local rebuildScheduled = false
-	
+
 	local modifierToBindsMap: { [Enum.KeyCode]: {IAS.Bind} } = {}
-	
+
 	local function fire(active: boolean, pressed: boolean)
 		if not self.Enabled then return end
 		self.Active = active
 		self.Activated:Fire(active, pressed)
 	end
 
+	local function tryConsumeBuffer()
+		if not _Buffered then return false end
+		_Buffered = false
+		
+		if not self.InputBufferEnabled then
+			_Buffered = false
+			_BufferedKey = nil
+			return false
+		end
+		
+		if (time() - _BufferedTime) > self.InputBufferTime then
+			_BufferedKey = nil
+			return false
+		end
+
+		local now = time()
+
+		if _ActiveMainKey and _ActiveMainKey ~= _BufferedKey then
+			_BufferedKey = nil
+			return false
+		end
+
+		if self.Hold then
+			if self.Cooldown > 0 and now < _CooldownUntil then
+				_BufferedKey = nil
+				return false
+			end
+
+			if self.Cooldown > 0 then
+				_CooldownUntil = now + self.Cooldown
+			end
+
+			if _ActiveBindCount == 0 then
+				_ActiveBindCount = 1
+				_ActiveMainKey = _BufferedKey
+				fire(true, true)
+			else
+				_ActiveBindCount = _ActiveBindCount + 1
+			end
+
+			_BufferedKey = nil
+			return true
+		else
+			if self.Cooldown > 0 and now < _CooldownUntil then
+				_BufferedKey = nil
+				return false
+			end
+
+			_ToggleState = not _ToggleState
+			self.Active = _ToggleState
+
+			if self.Cooldown > 0 then
+				_CooldownUntil = now + self.Cooldown
+			end
+
+			_ActiveMainKey = _BufferedKey
+
+			fire(_ToggleState, true)
+
+			_BufferedKey = nil
+			return true
+		end
+	end
+
 	local function rebuild()
-		if rebuildScheduled then return end
+		if rebuildScheduled or not activeBinds[self.Name] then return end
 		rebuildScheduled = true
 		task.defer(function()
 			local currentHash = getBindsHash(self.Binds)
@@ -199,6 +274,8 @@ function I2AS.new(name: string): IAS.Object
 				_PrevCooldown = self.Cooldown
 				_PrevTapRequired = self.TapRequired
 				_PrevTapWindow = self.TapWindow
+				_TapCount = 0
+				_LastTapTime = 0
 
 				clearConnections(stateConnections)
 
@@ -263,7 +340,10 @@ function I2AS.new(name: string): IAS.Object
 										end
 
 										if not allModsStillPressed then
-											fire(false, false)
+											--fire(false, false)
+											_ActiveBindCount = 0
+											_ActiveMainKey = nil
+											_ToggleState = false
 											break
 										end
 									end
@@ -299,6 +379,15 @@ function I2AS.new(name: string): IAS.Object
 						if pressed then
 							local now = time()
 
+							if _ActiveMainKey and _ActiveMainKey ~= keyEnum then
+								if self.InputBufferEnabled then
+									_Buffered = true
+									_BufferedTime = now
+									_BufferedKey = keyEnum
+								end
+								return
+							end
+
 							if self.TapRequired > 1 then
 								if now - _LastTapTime > self.TapWindow then
 									_TapCount = 0
@@ -324,16 +413,25 @@ function I2AS.new(name: string): IAS.Object
 							end
 
 							if self.Hold then
-								if self.Cooldown > 0 and now < _CooldownUntil then
-									fire(self.Active, true)
-									return
+								if anyBindSatisfied then
+									if self.Cooldown > 0 and now < _CooldownUntil then
+										fire(self.Active, true)
+										return
+									end
+
+									if self.Cooldown > 0 then
+										_CooldownUntil = now + self.Cooldown
+									end
 								end
 
-								if self.Cooldown > 0 then
-									_CooldownUntil = now + self.Cooldown
+								if _ActiveBindCount == 0 then
+									_ActiveBindCount = 1
+									_ActiveMainKey = keyEnum
+									fire(true, true)
+								else
+									_ActiveBindCount += 1
 								end
 
-								fire(true, true)
 								return
 							end
 
@@ -350,6 +448,7 @@ function I2AS.new(name: string): IAS.Object
 									_CooldownUntil = now + self.Cooldown
 								end
 
+								_ActiveMainKey = keyEnum
 								fire(true, true)
 								return
 							end
@@ -357,6 +456,7 @@ function I2AS.new(name: string): IAS.Object
 							_ToggleState = false
 							self.Active = false
 							fire(false, true)
+							
 							return
 						end
 
@@ -364,13 +464,19 @@ function I2AS.new(name: string): IAS.Object
 						tapCompletedPending = false
 
 						if self.Hold then
-							if self.Active then
-								fire(false, false)
-							else
-								fire(self.Active, false)
+							fire(false, false)
+							_ActiveBindCount -= 1
+							if _ActiveBindCount <= 0 then
+								_ActiveBindCount = 0
+								_ActiveMainKey = nil
+								tryConsumeBuffer()
 							end
 						else
 							fire(_ToggleState, false)
+							if _ActiveMainKey == keyEnum then
+								_ActiveMainKey = nil
+								tryConsumeBuffer()
+							end
 						end
 					end)
 
@@ -391,12 +497,12 @@ function I2AS.new(name: string): IAS.Object
 		self.UIButton = button
 		rebuild()
 	end
-	
+
 	function self:SetCooldown(cooldown: number)
 		self.Cooldown = math.max(0, cooldown)
 		rebuild()
 	end
-	
+
 	function self:ResetCooldown()
 		_CooldownUntil = 0
 	end
@@ -412,22 +518,23 @@ function I2AS.new(name: string): IAS.Object
 		_LastTapTime = 0
 		rebuild()
 	end
-	
+
 	function self:SetEnabled(enabled: boolean)
 		self.Enabled = enabled
-		
+
 		if not enabled and self.Active and self.Hold then
+			table.clear(modifiersState)
 			self.Active = false
 			self.Activated:Fire(false, false)
 		end
-		
+
 		InputContext.Enabled = self.Enabled
 	end
-	
+
 	function self:IsEnabled(): boolean
 		return self.Enabled
 	end
-	
+
 	function self:SetPriority(number)
 		self.Priority = number
 		InputContext.Priority = self.Priority
@@ -446,22 +553,31 @@ function I2AS.new(name: string): IAS.Object
 		return self.Sink
 	end
 	
+	function self:SetInputBufferEnabled(enabled: boolean)
+		self.InputBufferEnabled = enabled
+	end
+
+	function self:SetInputBufferTime(t: number)
+		t = math.max(0, t)
+		self.InputBufferTime = t
+	end
+
 	function self:GetBinds(): {IAS.Bind}
 		return deepCloneBinds(self.Binds)
 	end
-	
+
 	function self:AddBind(mainKey: Enum.KeyCode, ...: Enum.KeyCode?)
 		if not isValidKeyCode(mainKey) then return end
-		
+
 		local modifiers = {}
-		
+
 		for i = 1, select("#", ...) do
 			local mod = select(i, ...)
 			if mod and isValidKeyCode(mod) then
 				table.insert(modifiers, mod)
 			end
 		end
-		
+
 		for _, m in modifiers do if m == mainKey then return end end
 
 		for _, existing in self.Binds do
@@ -469,11 +585,11 @@ function I2AS.new(name: string): IAS.Object
 				return 
 			end
 		end
-		
+
 		table.insert(self.Binds, { KeyCode = mainKey, Modifier = modifiers })
 		rebuild()
 	end
-	
+
 	function self:SetBinds(binds: {IAS.Bind})
 		local validBinds = {}
 		for _, bind in binds do
@@ -487,11 +603,11 @@ function I2AS.new(name: string): IAS.Object
 				table.insert(validBinds, { KeyCode = bind.KeyCode, Modifier = validMods })
 			end
 		end
-		
+
 		self.Binds = deepCloneBinds(validBinds)
 		rebuild()
 	end
-	
+
 	function self:SetBind(mainKey: Enum.KeyCode, ...: Enum.KeyCode?)
 		table.clear(self.Binds)
 		self:AddBind(mainKey, ...)
@@ -531,14 +647,15 @@ function I2AS.new(name: string): IAS.Object
 		clearConnections(stateConnections)
 		table.clear(modifiersState)
 		table.clear(modifierToBindsMap)
-		
+		table.clear(stateConnections)
+
 		self.Activated:DisconnectAll()
-		
+
 		if InputContext and InputContext.Parent then
 			for _, child in InputContext:GetChildren() do child:Destroy() end
 			InputContext:Destroy()
 		end
-		
+
 		activeBinds[self.Name] = nil
 	end
 
