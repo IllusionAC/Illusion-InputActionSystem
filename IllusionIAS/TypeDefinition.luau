@@ -50,6 +50,9 @@ export type Object = {
 
 	TapRequired: number,
 	TapWindow: number,
+	
+	InputBufferEnabled: boolean,
+	InputBufferTime: number,
 
 	Activated: IAScriptSignal,
 	
@@ -65,6 +68,8 @@ export type Object = {
 	GetPriority: (self: Object) -> (number),
 	SetSink: (self: Object, boolean: boolean) -> (),
 	GetSink: (self: Object) -> (boolean),
+	SetInputBufferEnabled: (self: Object, enabled: boolean) -> (),
+	SetInputBufferTime: (self: Object, t: number) -> (),
 	GetBinds: (self: Object) -> {Bind},
 
 	AddBind: (self: Object, mainKey: Enum.KeyCode, ...(Enum.KeyCode?)) -> (),
