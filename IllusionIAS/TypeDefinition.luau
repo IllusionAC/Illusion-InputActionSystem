@@ -5,7 +5,6 @@
  // Type Declaration //
 //////////////////////
 ]]
-
 export type func = (active: boolean, pressed: boolean) -> ()
 
 export type IAScriptConnection = {
@@ -79,6 +78,19 @@ export type Object = {
 	ClearBinds: (self: Object) -> (),
 	
 	Destroy: (self: Object) -> (),
+}
+
+export type IllusionIAS = {
+	contextedBinds: { [string]: { Object } },
+	new: (name: string) -> Object,
+	get: (name: string) -> Object?,
+	getAll: () -> {[string]: Object},
+	addContext: (name: string, ...Object) -> (),
+	newContext: (name: string) -> (),
+	enableContext: (name: string, enabled: boolean) -> (), 
+	clearContexts: () -> (),
+	removeContext: (name: string) -> (),
+	removeFromContext: (name: string) -> (),
 }
 
 return {}
