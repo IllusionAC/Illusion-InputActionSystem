@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![IIASLogo|256x256, 75%]() 
+![IIASLogo|256x256, 75%](./IIASLogo.png) 
 </div>
 
 Hey developers! I'm excited to share the latest version of my **InputActionSystem** library - a complete rewrite of my [previous keybind system](https://devforum.roblox.com/t/illusions-inputactionsystem-an-easy-way-of-adding-keybinds-and-other/4061839) that's now fully modular and can be integrated anywhere in your LocalScripts.
