@@ -1,140 +1,190 @@
-# **Illusion's InputActionSystem**
+# <div align="center"> Illusion's InputActionSystem </div>
+
+<div align="center">
+
+![IIASLogo|256x256, 75%](upload://5CjYkEY6ZYhwlPKem5g70Bn8GPy.png) 
+</div>
+
+Hey developers! I'm excited to share the latest version of my **InputActionSystem** library - a complete rewrite of my [previous keybind system](https://devforum.roblox.com/t/illusions-inputactionsystem-an-easy-way-of-adding-keybinds-and-other/4061839) that's now fully modular and can be integrated anywhere in your LocalScripts.
+
+If you're working with Roblox's new InputActionSystem or just need robust keybind management, this library will save you hours of development time.
+
 ---
-#### Welcome to the GitHub repository of my IAS Library, you may find more informations in the [Roblox Devforum post](https://devforum.roblox.com/t/illusions-inputactionsystem-v2-currently-the-best-way-of-making-keybinds/4071242).
+
+## Key Features
+
+- **Flexible Input Types**: Define actions as Hold or Toggle buttons
+- **Multi-Key Support**: Assign multiple keys per action for full gamepad compatibility
+- **Key Combinations**: Create complex actions using modifier keys (e.g., Shift + F)
+- **UI Integration**: Connect keybinds to GuiButtons for seamless mobile support
+- **Cooldown System**: Prevent action spam with customizable cooldowns
+- **Input Buffering**: Capture inputs even during busy frames
+- **Tap Detection**: Trigger actions with double-tap or multi-tap sequences
+- **Priority & Sinking**: Fine control over input processing order
+
 ---
-### Installation
-- Download the content of the IllusionIAS folder
-- Place IllusionIAS.luau in ReplicatedStorage, and ScriptSignal.luau and TypeDefinition.luau in IllusionIAS.luau.
-- Then simply call it from any LocalScript using `require(ReplicatedStorage.IllusionIAS)` 
-- When the library gets updated, the only thing you have to do is replace the previous luau files.
-#
----
-### DOCUMENTATION: Current available methods and attributes:
-#
->Methods:
-```luau
-IAS.new(name: string) -- create and name a new bind.
-IAS.Get(name: string?) -- returns the bind's table
-IAS.GetAll() -- returns the entire IAS table
 
-SetHold(hold: boolean) -- true by default, turns the bind as button or a switch
+## Installation
 
-SetUIButton(button: GuiButton?) -- nil by default, set a GuiButton as a secondary source of activation 
--- There's currently a bug which prevents UIButton to trigger the InputAction if any keybinds has a Modifier option.
+**Option 1:** [Download from Creator Store](https://create.roblox.com/store/asset/92059655869452/Illusions-InputActionSystem-Module)
 
-SetCooldown(cooldown: number) -- 0 by default, set a cooldown between each activation
+**Option 2:** [Clone from GitHub](https://github.com/IllusionAC/Illusion-InputActionSystem)
 
-ResetCooldown() -- resets current cooldown for the bind
+Place the module in `ReplicatedStorage` and require it in any LocalScript:
 
-SetEnabled(boolean) -- Enable or disable the bind
-
-IsEnable() -- returns bind’s enable state
-
-SetPriority(number) -- set InputContext's Priority
-
-GetPriority() -- get InputContext's Priority
-
-SetSink(boolean) -- set InputContext's Sinkability 
-
-GetSink() -- get InputContext's Sinkability 
-
-GetBinds() -- returns a list of all the keybinds of the bind
-
-SetTapActivation(requiredTaps: number, tapWindow: number) -- 1, 0 by default, allows the bind to be activated by tapping a selected number of time. Cancels after a selected time
-
-AddBind(mainKey: Enum.KeyCode, ...Enum.KeyCode?) -- Add one keybind; allows one or more modifiers
-
-SetBinds(binds: { Bind }) -- Hard code your keybinds, and their modifiers. Check Code snippet under for usage
-
-SetBind(mainKey:  Enum.KeyCode, ...Enum.KeyCode?) -- Replace all currently set keybinds by one keybind, same usage as AddBind()
-
-RemoveBind(mainKey: Enum.KeyCode, ...Enum.KeyCode?) -- Remove a keybind. If that keybind has modifiers, consider deleting them too
-
-EditBind(oldMain: Enum.KeyCode, oldMods: { Enum.KeyCode }?, newMain: Enum.KeyCode, newMods: { Enum.KeyCode }?)  -- Replace a keybind and its modifiers by a new one, if the previous keybind had modifiers, consider replacing them too (the new modifier can be blank)
-
-ClearBinds() -- Removes all keybinds
-
-Destroy() -- delete the bind
-
+```lua
+local IAS = require(game.ReplicatedStorage.IllusionIAS)
 ```
+
+> **Note:** When updates are released, re-download from the Creator Store or pull from GitHub.
+
 ---
->Attributes:
-```luau
-Keybind.Name -- Name defined in .new() attribute
 
-Keybind.Active -- State of the Keybind (activated or deactivated)
+##  API Reference
 
-Keybind.Enabled --  Bind is enabled or disabled (not to confound with Active)
+### Create, Manage and give contexts to Binds
 
-Keybind.Priority -- InputContext's Priority
+```lua
+IAS.new(name: string)                    -- Create a new keybind
+IAS.Get(name: string?)                   -- Retrieve a specific bind
+IAS.GetAll()                             -- Get all registered binds
 
-Keybind.Sink -- InputContext's Sinkability
-
-Keybind.Hold -- Holding state defined in :SetHold() method
-
-Keybind.Cooldown -- Returns Keybind's cooldown in seconds
-
-Keybind.Activated -- For now, no purpose of using this alone, consider adding it an IAScriptSignal Method
-
+addContext: (name: string, ...Object)           -- add a Bind to a context
+newContext: (name: string)                      -- create a new context
+enableContext: (name: string, enabled: boolean) -- enable or disables all the binds from the context
+clearContexts: ()                               -- clear all contexts
+removeContext: (name: string)                   -- remove a context
+removeFromContext: (name: string)               -- remove a bind from a context
 ```
-Available IAScriptSignal methods are the same ones as Roblox (Connect, ConnectParallel, Once, Wait)
-Although they were custom made, they share Roblox's conventional usage, Check [RBXScriptSignal](https://create.roblox.com/docs/reference/engine/datatypes/RBXScriptSignal)
 
-IIAS uses an other module of mine, [IllusionSignal](https://github.com/IllusionAC/IllusionSignal)
-#
+### Configuration Methods
+
+```lua
+:SetHold(hold: boolean)                         -- true = hold to activate, false = toggle
+:SetUIButton(button: GuiButton?)                -- Link a GUI button as alternate input
+:SetCooldown(cooldown: number)                  -- Set cooldown in seconds (default: 0)
+:ResetCooldown()                                -- Manually reset cooldown
+:SetEnabled(enabled: boolean)                   -- Enable/disable the bind
+:IsEnabled()                                    -- Check if bind is enabled
+:SetTapActivation(taps: number, window: number) -- Require N taps within time window
+```
+
+### Input Context Control
+
+```lua
+:SetPriority(priority: number)           -- Set processing priority
+:GetPriority()                           -- Get current priority
+:SetSink(sink: boolean)                  -- Set if input should sink
+:GetSink()                               -- Get sink state
+```
+
+### Input Buffering
+
+```lua
+:SetInputBufferEnabled(enabled: boolean) -- Enable input buffering (default: false)
+:SetInputBufferTime(time: number)        -- Buffer window in seconds (default: 0.15)
+```
+
+### Keybind Management
+
+```lua
+:AddBind(mainKey: KeyCode, ...modifiers: KeyCode)        -- Add a keybind with optional modifiers
+:SetBind(mainKey: KeyCode, ...modifiers: KeyCode)        -- Replace all binds with one
+:SetBinds(binds: {{KeyCode: KeyCode, Modifier: {KeyCode}}}) -- Bulk set keybinds
+:GetBinds()                                              -- Get all current keybinds
+:RemoveBind(mainKey: KeyCode, ...modifiers: KeyCode)     -- Remove specific bind
+:EditBind(oldMain, oldMods, newMain, newMods)            -- Replace a bind
+:ClearBinds()                                            -- Remove all keybinds
+:Destroy()                                               -- Delete the bind entirely
+```
+
+### Properties
+
+```lua
+Keybind.Name         -- The bind's name
+Keybind.Active       -- Current activation state
+Keybind.Enabled      -- Whether bind is enabled
+Keybind.Priority     -- InputContext priority
+Keybind.Sink         -- InputContext sinkability
+Keybind.Hold         -- Hold mode state
+Keybind.Cooldown     -- Cooldown duration
+Keybind.Activated    -- IAScriptSignal event
+```
+
+The `Activated` event works like standard Roblox signals with `:Connect()`, `:Once()`, `:Wait()`, and `:Fire()` methods. This library uses [IllusionSignal](https://github.com/IllusionAC/IllusionSignal) module.
+
 ---
-Exemple code: two keybinds changing Humanoid walkspeed
-```luau
---!strict
+
+## Example: Sprint & Walk System
+
+```lua
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
-local I2AS = require(ReplicatedStorage.IllusionIAS)
+local IAS = require(ReplicatedStorage.IllusionIAS)
 
-local Player = Players.LocalPlayer
-if not Player then return end
-local Character = Player.Character or Player.CharacterAdded:Wait()
-local Humanoid: Humanoid? = Character:FindFirstChildOfClass("Humanoid")
-if not Humanoid then return end
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
 
-local sprint = I2AS.new("Sprint")
-local walk = I2AS.new("Walk")
+-- Create binds
+local sprint = IAS.new("Sprint")
+local walk = IAS.new("Walk")
 
+-- Configure as hold buttons
 sprint:SetHold(true)
 walk:SetHold(true)
 
-sprint:SetBinds({{KeyCode = Enum.KeyCode.LeftShift, Modifier = {}}})
-walk:SetBinds({{KeyCode = Enum.KeyCode.LeftControl, Modifier = {}}})
+-- Set keybinds
+sprint:AddBind(Enum.KeyCode.LeftShift)
+walk:AddBind(Enum.KeyCode.LeftControl)
 
+-- Connect to humanoid
 sprint.Activated:Connect(function(active, pressed)
-	Humanoid.WalkSpeed = active and 24 or 16
+    humanoid.WalkSpeed = active and 24 or 16
 end)
 
-walk.Activated:Connect(function(active, pressed) 
-	Humanoid.WalkSpeed = active and 8 or 16
+walk.Activated:Connect(function(active, pressed)
+    humanoid.WalkSpeed = active and 8 or 16
 end)
-
 ```
-#
-Exemple code: easiest way to add a bind with other settings
-```luau
---!strict
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local I2AS = require(ReplicatedStorage.IllusionIAS)
 
-local Bind = I2AS.new("Bind")
-Bind:AddBind(Enum.KeyCode.F, Enum.KeyCode.LeftShift) -- you have to press leftshift and F to activate the bind (F is the main key)
-Bind:SetHold(false) -- when releasing, activation remains, you'll have to press the combination again
-Bind:SetCooldown(2) -- cooldown between each activation
-Bind:SetTapActivation(2,0.5) -- press twice the keys to activate (if it takes more than 0.5 seconds to press the second time, sink it
-
-Bind.Activated:Connect(function(active, pressed) 
-	print(active, pressed) -- will print the current activation and pressed state
-end) 
-
-```
-#
 ---
-Thanks for reading all of that, consider giving me feedbacks, suggestions, report the bugs etc...
-#
-Have fun scripting !
-Illusion.
+
+## Example: Advanced Keybind with Cooldown
+
+```lua
+local IAS = require(game.ReplicatedStorage.IllusionIAS)
+
+local bind = IAS.new("Bind")
+
+-- Shift + F to activate
+bind:AddBind(Enum.KeyCode.F, Enum.KeyCode.LeftShift)
+
+-- Toggle mode
+bind:SetHold(false)
+
+-- 2 second cooldown
+bind:SetCooldown(2)
+
+-- Double-tap within 0.5s to activate
+bind:SetTapActivation(2, 0.5)
+
+bind.Activated:Connect(function(active, pressed)
+    print("Bind state:", active, "| Key pressed:", pressed)
+    -- The binds logic
+end)
+```
+
+---
+
+## Feedback & Support
+
+I'd love to hear your thoughts! Please share:
+- Feature requests
+- Bug reports
+- Use cases from your projects
+- Suggestions for improvements
+
+Thanks for checking out IllusionIAS - happy scripting!
+
+*- Illusion*
