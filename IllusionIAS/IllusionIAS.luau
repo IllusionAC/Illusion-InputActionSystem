@@ -101,10 +101,37 @@ local function clearConnections(stateConnections: {RBXScriptConnection}?)
 	end
 end
 
-local I2AS = {}
+local function pickBestSatisfiedBind(bindList: {IAS.Bind}, modifiersStateLocal: { [Enum.KeyCode]: boolean })
+	local bestBind: IAS.Bind? = nil
+	local bestCount = -1
+
+	for _, bindData in bindList do
+		local allModsPresent = true
+		local modCount = 0
+		for _, modKey in bindData.Modifier do
+			if modKey then
+				modCount += 1
+				if not modifiersStateLocal[modKey] then
+					allModsPresent = false
+					break
+				end
+			end
+		end
+
+		if allModsPresent and modCount > bestCount then
+			bestBind = bindData
+			bestCount = modCount
+		end
+	end
+
+	return bestBind, bestCount
+end
+
+local IIAS = {}
+IIAS.contextedBinds = {} :: { [string]: { IAS.Object } }
 local activeBinds: { [string]: IAS.Object } = {}
 
-function I2AS.new(name: string): IAS.Object
+function IIAS.new(name: string): IAS.Object
 	if activeBinds[name] then error(("IAS with %q already exists"):format(name)) end
 
 	local bindFolder = getBindFolder()
@@ -187,32 +214,6 @@ function I2AS.new(name: string): IAS.Object
 	local activeKeysCounted: { [Enum.KeyCode]: boolean } = {}
 
 	local blockedPresses: { [Enum.KeyCode]: boolean } = {}
-
-	local function pickBestSatisfiedBind(bindList: {IAS.Bind}, modifiersStateLocal: { [Enum.KeyCode]: boolean })
-		local bestBind: IAS.Bind? = nil
-		local bestCount = -1
-
-		for _, bindData in bindList do
-			local allModsPresent = true
-			local modCount = 0
-			for _, modKey in bindData.Modifier do
-				if modKey then
-					modCount += 1
-					if not modifiersStateLocal[modKey] then
-						allModsPresent = false
-						break
-					end
-				end
-			end
-
-			if allModsPresent and modCount > bestCount then
-				bestBind = bindData
-				bestCount = modCount
-			end
-		end
-
-		return bestBind, bestCount
-	end
 
 	local function fire(active: boolean, pressed: boolean)
 		if not self.Enabled then return end
@@ -483,7 +484,7 @@ function I2AS.new(name: string): IAS.Object
 	function self:SetEnabled(enabled: boolean)
 		self.Enabled = enabled
 
-		if not enabled and self.Active and self.Hold then
+		if not enabled and self.Active then
 			table.clear(modifiersState)
 			self.Active = false
 			self.Activated:Fire(false, false)
@@ -670,12 +671,60 @@ function I2AS.new(name: string): IAS.Object
 	return self
 end
 
-function I2AS.Get(name: string): IAS.Object?
+function IIAS.get(name: string): IAS.Object?
 	return activeBinds[name]
 end
 
-function I2AS.GetAll(): {[string]: IAS.Object}
+function IIAS.getAll(): {[string]: IAS.Object}
 	return activeBinds
 end
 
-return I2AS
+function IIAS.newContext(name: string)
+	if not IIAS.contextedBinds[name] then
+		IIAS.contextedBinds[name] = {}
+	end
+end
+
+function IIAS.addContext(name: string, ...: IAS.Object): ()
+	local variad: {IAS.Object} = { ... }
+
+	IIAS.newContext(name)
+
+	local context = IIAS.contextedBinds[name]
+
+	for _, obj in variad do
+		local resolved = IIAS.get(obj.Name)
+		if resolved then
+			table.insert(context, resolved)
+		end
+	end
+end
+
+function IIAS.enableContext(name: string, enabled: boolean)
+	if not IIAS.contextedBinds[name] then return end
+	for _, bind in IIAS.contextedBinds[name] do
+		bind:SetEnabled(enabled)
+	end
+end
+
+function IIAS.removeContext(name: string): ()
+	if IIAS.contextedBinds[name] then
+		IIAS.contextedBinds[name] = {}
+	end
+end
+
+function IIAS.removeFromContext(name: string, bind: IAS.Object): ()
+	local context = IIAS.contextedBinds[name]
+	if not bind or not context then return end
+	for i, stored in context do
+		if stored ~= nil and stored.Name == bind.Name then
+			table.remove(context, i)
+		end
+	end
+end
+
+function IIAS.clearContexts(): ()
+	IIAS.contextedBinds = {}
+end
+
+return IIAS :: IAS.IllusionIAS
