@@ -45,16 +45,16 @@ local IAS = require(game.ReplicatedStorage.IllusionIAS)
 ### Create, Manage and give contexts to Binds
 
 ```lua
-IAS.new(name: string)                    -- Create a new keybind
-IAS.Get(name: string?)                   -- Retrieve a specific bind
-IAS.GetAll()                             -- Get all registered binds
+IIAS.new(name: string)                    -- Create a new keybind
+IIAS.Get(name: string?)                   -- Retrieve a specific bind
+IIAS.GetAll()                             -- Get all registered binds
 
-addContext: (name: string, ...Object)           -- add a Bind to a context
-newContext: (name: string)                      -- create a new context
-enableContext: (name: string, enabled: boolean) -- enable or disables all the binds from the context
-clearContexts: ()                               -- clear all contexts
-removeContext: (name: string)                   -- remove a context
-removeFromContext: (name: string)               -- remove a bind from a context
+IIAS.addContext(name: string, ...Object)           -- add a Bind to a context
+IIAS.newContext(name: string)                      -- create a new context
+IIAS.enableContext(name: string, enabled: boolean) -- enable or disables all the binds from the context
+IIAS.clearContexts()                               -- clear all contexts
+IIAS.removeContext(name: string)                   -- remove a context
+IIAS.removeFromContext(name: string)               -- remove a bind from a context
 ```
 
 ### Configuration Methods
@@ -120,15 +120,15 @@ The `Activated` event works like standard Roblox signals with `:Connect()`, `:On
 ```lua
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
-local IAS = require(ReplicatedStorage.IllusionIAS)
+local IIAS = require(ReplicatedStorage.IllusionIAS)
 
 local player = Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoid = character:WaitForChild("Humanoid")
 
 -- Create binds
-local sprint = IAS.new("Sprint")
-local walk = IAS.new("Walk")
+local sprint = IIAS.new("Sprint")
+local walk = IIAS.new("Walk")
 
 -- Configure as hold buttons
 sprint:SetHold(true)
@@ -153,9 +153,9 @@ end)
 ## Example: Advanced Keybind with Cooldown
 
 ```lua
-local IAS = require(game.ReplicatedStorage.IllusionIAS)
+local IIAS = require(game.ReplicatedStorage.IllusionIAS)
 
-local bind = IAS.new("Bind")
+local bind = IIAS.new("Bind")
 
 -- Shift + F to activate
 bind:AddBind(Enum.KeyCode.F, Enum.KeyCode.LeftShift)
