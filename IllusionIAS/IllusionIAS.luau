@@ -128,7 +128,7 @@ local function pickBestSatisfiedBind(bindList: {IAS.Bind}, modifiersStateLocal: 
 end
 
 local IIAS = {}
-IIAS.contextedBinds = {} :: { [string]: { IAS.Object } }
+IIAS.contextedBinds = {} :: {[string]: {[string]: boolean}}
 local activeBinds: { [string]: IAS.Object } = {}
 
 function IIAS.new(name: string): IAS.Object
@@ -685,45 +685,38 @@ function IIAS.newContext(name: string)
 	end
 end
 
-function IIAS.addContext(name: string, ...: IAS.Object): ()
-	local variad: {IAS.Object} = { ... }
-
+function IIAS.addContext(name: string, ...: IAS.Object)
 	IIAS.newContext(name)
-
 	local context = IIAS.contextedBinds[name]
-
-	for _, obj in variad do
-		local resolved = IIAS.get(obj.Name)
-		if resolved then
-			table.insert(context, resolved)
-		end
+	for _, obj in { ... } do
+		context[obj.Name] = true
 	end
 end
 
 function IIAS.enableContext(name: string, enabled: boolean)
-	if not IIAS.contextedBinds[name] then return end
-	for _, bind in IIAS.contextedBinds[name] do
-		bind:SetEnabled(enabled)
-	end
-end
-
-function IIAS.removeContext(name: string): ()
-	if IIAS.contextedBinds[name] then
-		IIAS.contextedBinds[name] = {}
-	end
-end
-
-function IIAS.removeFromContext(name: string, bind: IAS.Object): ()
 	local context = IIAS.contextedBinds[name]
-	if not bind or not context then return end
-	for i, stored in context do
-		if stored ~= nil and stored.Name == bind.Name then
-			table.remove(context, i)
+	if not context then return end
+
+	for bindName in context do
+		local obj = IIAS.get(bindName)
+		if obj then
+			obj:SetEnabled(enabled)
 		end
 	end
 end
 
-function IIAS.clearContexts(): ()
+function IIAS.removeFromContext(name: string, bind: IAS.Object)
+	local context = IIAS.contextedBinds[name]
+	if context then
+		context[bind.Name] = nil
+	end
+end
+
+function IIAS.removeContext(name: string)
+	IIAS.contextedBinds[name] = nil
+end
+
+function IIAS.clearContexts()
 	IIAS.contextedBinds = {}
 end
 
