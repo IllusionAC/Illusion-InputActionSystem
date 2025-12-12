@@ -85,12 +85,13 @@ export type IllusionIAS = {
 	new: (name: string) -> Object,
 	get: (name: string) -> Object?,
 	getAll: () -> {[string]: Object},
-	addContext: (name: string, ...Object) -> (),
 	newContext: (name: string) -> (),
+	addContext: (name: string, ...Object) -> (),
 	enableContext: (name: string, enabled: boolean) -> (), 
-	clearContexts: () -> (),
+	isContextEnabled: (name: string) -> boolean,
 	removeContext: (name: string) -> (),
 	removeFromContext: (name: string) -> (),
+	clearContexts: () -> (),
 }
 
 return {}
