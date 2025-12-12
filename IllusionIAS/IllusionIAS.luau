@@ -128,7 +128,8 @@ local function pickBestSatisfiedBind(bindList: {IAS.Bind}, modifiersStateLocal: 
 end
 
 local IIAS = {}
-IIAS.contextedBinds = {} :: {[string]: {[string]: boolean}}
+IIAS.contextedBinds = {} :: {[string]: {Enabled: boolean, Members: {[string]: boolean}}}
+
 local activeBinds: { [string]: IAS.Object } = {}
 
 function IIAS.new(name: string): IAS.Object
@@ -681,13 +682,16 @@ end
 
 function IIAS.newContext(name: string)
 	if not IIAS.contextedBinds[name] then
-		IIAS.contextedBinds[name] = {}
+		IIAS.contextedBinds[name] = {
+			Enabled = true,
+			Members = {},
+		}
 	end
 end
 
 function IIAS.addContext(name: string, ...: IAS.Object)
 	IIAS.newContext(name)
-	local context = IIAS.contextedBinds[name]
+	local context = IIAS.contextedBinds[name].Members
 	for _, obj in { ... } do
 		context[obj.Name] = true
 	end
@@ -697,19 +701,25 @@ function IIAS.enableContext(name: string, enabled: boolean)
 	local context = IIAS.contextedBinds[name]
 	if not context then return end
 
-	for bindName in context do
+	for bindName in context.Members do
 		local obj = IIAS.get(bindName)
 		if obj then
 			obj:SetEnabled(enabled)
 		end
 	end
+	
+	context.Enabled = enabled
+end
+
+function IIAS.isContextEnabled(name: string)
+	if not IIAS.contextedBinds[name] then return false end
+	return IIAS.contextedBinds[name].Enabled
 end
 
 function IIAS.removeFromContext(name: string, bind: IAS.Object)
 	local context = IIAS.contextedBinds[name]
-	if context then
-		context[bind.Name] = nil
-	end
+	if not context then return end
+	context.Members[bind.Name] = nil
 end
 
 function IIAS.removeContext(name: string)
