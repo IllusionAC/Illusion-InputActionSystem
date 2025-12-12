@@ -52,6 +52,7 @@ IIAS.GetAll()                             -- Get all registered binds
 IIAS.addContext(name: string, ...Object)           -- add a Bind to a context
 IIAS.newContext(name: string)                      -- create a new context
 IIAS.enableContext(name: string, enabled: boolean) -- enable or disables all the binds from the context
+IIAS.isContextEnabled(name: string)                -- returns the context's action state
 IIAS.clearContexts()                               -- clear all contexts
 IIAS.removeContext(name: string)                   -- remove a context
 IIAS.removeFromContext(name: string)               -- remove a bind from a context
