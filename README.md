@@ -25,6 +25,7 @@ If you're working with Roblox's new InputActionSystem or just need robust keybin
 ---
 
 ## Installation
+### Non Server Authority version:
 
 **Option 1:** [Download from Creator Store](https://create.roblox.com/store/asset/92059655869452/Illusions-InputActionSystem-Module)
 
@@ -36,8 +37,15 @@ Place the module in `ReplicatedStorage` and require it in any LocalScript:
 local IAS = require(game.ReplicatedStorage.IllusionIAS)
 ```
 
-> **Note:** When updates are released, re-download from the Creator Store or pull from GitHub.
+### Server Authority version:
 
+Option 1: [Download from Creator Store](https://create.roblox.com/store/asset/132483497491188/ServerAuth-Illusions-InputActionSystem)
+
+Option 2: (Clone from GitHub)[]
+
+You'll be provided the module to be placed in `ReplicatedStorage` within a folder with a ServerScript to be placed in ServerScriptService. That ServerScript can be changed, it just creates instances for InputContexts, InputActions and InputBinding, and place them in the InputContexts folder inside Player (this folder is available only when ServerAuthority is in use)
+
+> **Note:** When updates are released, re-download from the Creator Store or pull from GitHub.
 ---
 
 ##  API Reference
@@ -55,7 +63,7 @@ IIAS.enableContext(name: string, enabled: boolean) -- enable or disables all the
 IIAS.isContextEnabled(name: string)                -- returns the context's action state
 IIAS.clearContexts()                               -- clear all contexts
 IIAS.removeContext(name: string)                   -- remove a context
-IIAS.removeFromContext(name: string)               -- remove a bind from a context
+IIAS.removeFromContext(name: string, bind: Object) -- remove a bind from a context
 ```
 
 ### Configuration Methods
