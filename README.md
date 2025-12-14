@@ -39,9 +39,9 @@ local IAS = require(game.ReplicatedStorage.IllusionIAS)
 
 ### Server Authority version:
 
-Option 1: [Download from Creator Store](https://create.roblox.com/store/asset/132483497491188/ServerAuth-Illusions-InputActionSystem)
+**Option 1**: [Download from Creator Store](https://create.roblox.com/store/asset/132483497491188/ServerAuth-Illusions-InputActionSystem)
 
-Option 2: (Clone from GitHub)[]
+**Option 2:** [Clone from GitHub](https://github.com/IllusionAC/Illusion-InputActionSystem)
 
 You'll be provided the module to be placed in `ReplicatedStorage` within a folder with a ServerScript to be placed in ServerScriptService. That ServerScript can be changed, it just creates instances for InputContexts, InputActions and InputBinding, and place them in the InputContexts folder inside Player (this folder is available only when ServerAuthority is in use)
 
