@@ -133,7 +133,7 @@ IIAS.contextedBinds = {} :: {[string]: {Enabled: boolean, Members: {[string]: bo
 local activeBinds: { [string]: IAS.Object } = {}
 
 function IIAS.new(name: string): IAS.Object
-	if activeBinds[name] then error(("IAS with %q already exists"):format(name)) end
+	if activeBinds[name] then return activeBinds[name] end
 
 	local bindFolder = getBindFolder()
 	local InputContext = Instance.new("InputContext")
