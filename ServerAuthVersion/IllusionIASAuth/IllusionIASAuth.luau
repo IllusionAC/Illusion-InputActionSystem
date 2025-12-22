@@ -135,7 +135,7 @@ IIAS.contextedBinds = {} :: {[string]: {Enabled: boolean, Members: {[string]: bo
 
 function IIAS.new(name: string): IAS.Object
 	if activeBinds[name] then
-		error(("IAS %q already exists"):format(name))
+		return activeBinds[name]
 	end
 
 	local context = acquireContext(name)
