@@ -270,7 +270,7 @@ function IIAS.new(name: string): IAS.Object
 		rebuildScheduled = true
 		task.defer(function()
 			local currentHash = getBindsHash(self.Binds)
-
+			
 			if not (currentHash == _PrevBindsHash
 				and self.UIButton == _PrevUIButton
 				and self.Hold == _PrevHold) then
@@ -689,6 +689,10 @@ function IIAS.newContext(name: string)
 	end
 end
 
+function IIAS.getContext(name: string)
+	return IIAS.contextedBinds[name]
+end
+
 function IIAS.addContext(name: string, ...: IAS.Object)
 	IIAS.newContext(name)
 	local context = IIAS.contextedBinds[name].Members
@@ -720,6 +724,13 @@ function IIAS.removeFromContext(name: string, bind: IAS.Object)
 	local context = IIAS.contextedBinds[name]
 	if not context then return end
 	context.Members[bind.Name] = nil
+end
+
+function IIAS.removeAllFromContext(name: string)
+	IIAS.contextedBinds[name] = {
+		Enabled = true,
+		Members = {},
+	}
 end
 
 function IIAS.removeContext(name: string)
