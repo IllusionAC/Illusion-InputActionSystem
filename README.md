@@ -62,7 +62,7 @@ IIAS.isContextEnabled(name: string)                -- returns the context's acti
 IIAS.clearContexts()                               -- clear all contexts
 IIAS.removeContext(name: string)                   -- remove a context
 IIAS.removeFromContext(name: string, bind: Object) -- remove a bind from a context
-IIAS.removeAllFromContext(name: string): empty a context without deleting it
+IIAS.removeAllFromContext(name: string)            -- empty a context without deleting it
 
 ```
 
