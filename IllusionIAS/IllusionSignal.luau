@@ -1,9 +1,9 @@
 --!strict
 --IllusionSignal.luau
 --[[ 
-  /////////////////////
- // Illusion Signal // 
-/////////////////////
+  //////////////////////
+ //  Illusion Signal //
+//////////////////////
 ]]
 
 local IAS = require("./TypeDefinition")
