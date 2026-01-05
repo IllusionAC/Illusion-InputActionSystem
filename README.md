@@ -21,6 +21,7 @@ If you're working with Roblox's new InputActionSystem or just need robust keybin
 - **Input Buffering**: Capture inputs even during busy frames
 - **Tap Detection**: Trigger actions with double-tap or multi-tap sequences
 - **Priority & Sinking**: Fine control over input processing order
+- **(NEW) Choose between five different InputActionType**: respecting original usage of IAS
 
 ---
 
@@ -39,11 +40,7 @@ local IAS = require(game.ReplicatedStorage.IllusionIAS)
 
 ### Server Authority version:
 
-**Option 1**: [Download from Creator Store](https://create.roblox.com/store/asset/132483497491188/ServerAuth-Illusions-InputActionSystem)
-
-**Option 2:** [Clone from GitHub](https://github.com/IllusionAC/Illusion-InputActionSystem)
-
-You'll be provided the module to be placed in `ReplicatedStorage` within a folder with a ServerScript to be placed in ServerScriptService. That ServerScript can be changed, it just creates instances for InputContexts, InputActions and InputBinding, and place them in the InputContexts folder inside Player (this folder is available only when ServerAuthority is in use)
+Currently Unavailable as it's really not done.
 
 > **Note:** When updates are released, re-download from the Creator Store or pull from GitHub.
 ---
@@ -53,17 +50,20 @@ You'll be provided the module to be placed in `ReplicatedStorage` within a folde
 ### Create, Manage and give contexts to Binds
 
 ```lua
-IIAS.new(name: string)                    -- Create a new keybind
-IIAS.Get(name: string?)                   -- Retrieve a specific bind
-IIAS.GetAll()                             -- Get all registered binds
+IIAS.new(name: string, InputType: Enum.InputActionType?) -- Create a new keybind, set a InputActionType (default to Bool)
+IIAS.Get(name: string?)                                  -- Retrieve a specific bind
+IIAS.GetAll()                                            -- Get all registered binds
 
 IIAS.addContext(name: string, ...Object)           -- add a Bind to a context
+IIAS.getContext(name: string)                      -- returns a context
 IIAS.newContext(name: string)                      -- create a new context
 IIAS.enableContext(name: string, enabled: boolean) -- enable or disables all the binds from the context
 IIAS.isContextEnabled(name: string)                -- returns the context's action state
 IIAS.clearContexts()                               -- clear all contexts
 IIAS.removeContext(name: string)                   -- remove a context
 IIAS.removeFromContext(name: string, bind: Object) -- remove a bind from a context
+IIAS.removeAllFromContext(name: string): empty a context without deleting it
+
 ```
 
 ### Configuration Methods
@@ -99,12 +99,27 @@ IIAS.removeFromContext(name: string, bind: Object) -- remove a bind from a conte
 ```lua
 :AddBind(mainKey: KeyCode, ...modifiers: KeyCode)        -- Add a keybind with optional modifiers
 :SetBind(mainKey: KeyCode, ...modifiers: KeyCode)        -- Replace all binds with one
-:SetBinds(binds: {{KeyCode: KeyCode, Modifier: {KeyCode}}}) -- Bulk set keybinds
 :GetBinds()                                              -- Get all current keybinds
 :RemoveBind(mainKey: KeyCode, ...modifiers: KeyCode)     -- Remove specific bind
 :EditBind(oldMain, oldMods, newMain, newMods)            -- Replace a bind
 :ClearBinds()                                            -- Remove all keybinds
 :Destroy()                                               -- Delete the bind entirely
+:SetCompositeDirections(up, down, left, right, forward, backward) -- Sets composite directions for Directions
+```
+
+### InputActionType management
+
+```lua
+:SetScale(scale)                 -- Set Scale for Directions
+:GetScale()                      -- Get Scale for Directions
+:SetVectorScale(vector)          -- Set VectorScale for Directions
+:GetVectorScale()                -- Get VectorScale for Directions
+:SetResponseCurve(curve)         -- Set ReesponseCurve for Directions
+:GetResponseCurve()              -- Get ResponseCurve for Directions
+:SetPressedThreshold(threshold)  -- Set Pressed Threshold for Bool
+:GetPressedThreshold()           -- Get Pressed Threshold for Bool
+:SetReleasedThreshold(threshold) -- Set Released Threshold for Bool
+:GetReleasedThreshold()          -- Get Released Threshold for Bool
 ```
 
 ### Properties
@@ -118,6 +133,11 @@ Keybind.Sink         -- InputContext sinkability
 Keybind.Hold         -- Hold mode state
 Keybind.Cooldown     -- Cooldown duration
 Keybind.Activated    -- IAScriptSignal event
+Keybind.Scale        -- InputBinding Scale, for Directions
+Keybind.VectorScale  -- InputBinding VectorScale, for Direction2D and 3D
+Keybind.ResponseCurve -- InputBinding ResponseCurve, for Directions
+Keybind.PressedThreshold -- InputBinding PressedThreshold, for Bool
+Keybind.ReleasedThreshold -- InputBinding ReleasedThreshold, for Bool
 ```
 
 The `Activated` event works like standard Roblox signals with `:Connect()`, `:Once()`, `:Wait()`, and `:Fire()` methods. This library uses [IllusionSignal](https://github.com/IllusionAC/IllusionSignal) module.
@@ -196,4 +216,4 @@ I'd love to hear your thoughts! Please share:
 
 Thanks for checking out IllusionIAS - happy scripting!
 
-*- Illusion*
+*- Illusion* | discord: @illuusion
