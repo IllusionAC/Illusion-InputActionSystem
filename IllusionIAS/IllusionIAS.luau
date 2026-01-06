@@ -89,7 +89,8 @@ function IIAS.new(name: string, InputType: Enum.InputActionType?): IAS.Object
 	if activeBinds[name] then return activeBinds[name] end
 	local InputType = InputType or Enum.InputActionType.Bool
 		
-	local InputContext = Instance.new("InputContext")
+	local InputContext: InputContext? = Instance.new("InputContext")
+	if not InputContext then return {}::IAS.Object end
 	InputContext.Name = name
 	InputContext.Parent = getBindFolder()
 
@@ -257,7 +258,7 @@ function IIAS.new(name: string, InputType: Enum.InputActionType?): IAS.Object
 		end
 	end
 	
-	InputContext.ChildAdded:Connect(function(child)
+	local childAddedConn: RBXScriptConnection? = InputContext.ChildAdded:Connect(function(child)
 		if child:IsA("InputAction") then
 			if child.Name:find("_Mod_") then
 				stateConnections[child.Name] = child.StateChanged:Connect(function(bool: boolean)
@@ -405,7 +406,7 @@ function IIAS.new(name: string, InputType: Enum.InputActionType?): IAS.Object
 		end
 	end)
 
-	InputContext.ChildRemoved:Connect(function(child)
+	local childRemovedConn: RBXScriptConnection? = InputContext.ChildRemoved:Connect(function(child)
 		if stateConnections[child.Name] then
 			stateConnections[child.Name]:Disconnect()
 			stateConnections[child.Name] = nil
@@ -416,80 +417,80 @@ function IIAS.new(name: string, InputType: Enum.InputActionType?): IAS.Object
 	local _, UIButtonBinding = instanceSetup("UIButton", Enum.InputActionType.Bool, InputContext)
 	
 	local rebuilding = false
+	local destroyed = false
 	local function rebuild()
 		if rebuilding then return end
+		if destroyed then return end
 		rebuilding = true
-				
-		task.spawn(function()				
-			local isEqual, differences = BindUtils.CheckDifferences(_PrevBinds, self.Binds)
-			
-			table.clear(bindsByMainKey)
-			table.clear(modifiersState)
+								
+		local isEqual, differences = BindUtils.CheckDifferences(_PrevBinds, self.Binds)
+		
+		table.clear(bindsByMainKey)
+		table.clear(modifiersState)
 
-			if not isEqual and differences then		
-				local diffs = BindUtils.GetDifference(_PrevBinds, differences) :: {IAS.DiffList}
+		if not isEqual and differences then		
+			local diffs = BindUtils.GetDifference(_PrevBinds, differences) :: {IAS.DiffList}
 
-				for _, diff in diffs do
-					if diff.ChangeType == "Modified" then
-						if diff.OldKeyCode ~= diff.NewKeyCode and diff.NewKeyCode then
-							InputBinding.KeyCode = diff.NewKeyCode
-						end
+			for _, diff in diffs do
+				if diff.ChangeType == "Modified" then
+					if diff.OldKeyCode ~= diff.NewKeyCode and diff.NewKeyCode then
+						InputBinding.KeyCode = diff.NewKeyCode
+					end
 
-						for _, key in diff.AddedModifiers do
-							key = key or Enum.KeyCode.Unknown
-							local _, modbinding = instanceSetup(`{MainName}_Mod_{key.Name}`, Enum.InputActionType.Bool, InputContext)
-							modbinding.KeyCode = key
-						end
+					for _, key in diff.AddedModifiers do
+						key = key or Enum.KeyCode.Unknown
+						local _, modbinding = instanceSetup(`{MainName}_Mod_{key.Name}`, Enum.InputActionType.Bool, InputContext)
+						modbinding.KeyCode = key
+					end
 
-						for _, key in diff.RemovedModifiers do
-							instanceDeletion(`{MainName}_Mod_{(key or Enum.KeyCode.Unknown).Name}`, InputContext)
-						end
+					for _, key in diff.RemovedModifiers do
+						instanceDeletion(`{MainName}_Mod_{(key or Enum.KeyCode.Unknown).Name}`, InputContext)
+					end
 
-					elseif diff.ChangeType == "Added" then
-						local _, altbinding = instanceSetup(diff.BindName, InputType, InputContext)
-						altbinding.KeyCode = diff.NewKeyCode or Enum.KeyCode.Unknown
+				elseif diff.ChangeType == "Added" then
+					local _, altbinding = instanceSetup(diff.BindName, InputType, InputContext)
+					altbinding.KeyCode = diff.NewKeyCode or Enum.KeyCode.Unknown
 
-						for _, key in diff.AddedModifiers do
-							key = key or Enum.KeyCode.Unknown
-							local _, altmodbinding = instanceSetup(`{diff.BindName}_Mod_{key.Name}`, Enum.InputActionType.Bool, InputContext)
-							altmodbinding.KeyCode = key
-						end
+					for _, key in diff.AddedModifiers do
+						key = key or Enum.KeyCode.Unknown
+						local _, altmodbinding = instanceSetup(`{diff.BindName}_Mod_{key.Name}`, Enum.InputActionType.Bool, InputContext)
+						altmodbinding.KeyCode = key
+					end
 
-					elseif diff.ChangeType == "Removed" then
-						instanceDeletion(diff.BindName, InputContext)
+				elseif diff.ChangeType == "Removed" then
+					instanceDeletion(diff.BindName, InputContext)
 
-						for _, key in diff.RemovedModifiers do
-							instanceDeletion(`{diff.BindName}_Mod_{(key or Enum.KeyCode.Unknown).Name}`, InputContext)
-						end
+					for _, key in diff.RemovedModifiers do
+						instanceDeletion(`{diff.BindName}_Mod_{(key or Enum.KeyCode.Unknown).Name}`, InputContext)
 					end
 				end
-
-				BindUtils.ApplyDifferences(_PrevBinds, differences)
-				
-				for bindName, bind in self.Binds do
-					local mainKey = bind.KeyCode
-					if not mainKey then continue end
-
-					bindsByMainKey[mainKey] = bindsByMainKey[mainKey] or {}
-
-					table.insert(bindsByMainKey[mainKey], {
-						BindName = bindName,
-						KeyCode = mainKey,
-						Modifiers = table.clone(bind.Modifier),
-					})
-
-					for _, mod in bind.Modifier do
-						if mod then
-							modifiersState[mod] = false
-						end
-					end
-				end
-
-				_PrevBinds = BindUtils.Clone(self.Binds)
 			end
+
+			BindUtils.ApplyDifferences(_PrevBinds, differences)
+			
+			for bindName, bind in self.Binds do
+				local mainKey = bind.KeyCode
+				if not mainKey then continue end
+
+				bindsByMainKey[mainKey] = bindsByMainKey[mainKey] or {}
+
+				table.insert(bindsByMainKey[mainKey], {
+					BindName = bindName,
+					KeyCode = mainKey,
+					Modifiers = table.clone(bind.Modifier),
+				})
+
+				for _, mod in bind.Modifier do
+					if mod then
+						modifiersState[mod] = false
+					end
+				end
+			end
+
+			_PrevBinds = BindUtils.Clone(self.Binds)
+		end
 					
-			rebuilding = false
-		end)
+		rebuilding = false
 	end
 
 	rebuild()
@@ -753,17 +754,36 @@ function IIAS.new(name: string, InputType: Enum.InputActionType?): IAS.Object
 		InputBinding.Backward = Backward or Enum.KeyCode.Unknown
 	end
 	
-	function self:Destroy()
-		if InputContext then
-			InputContext:Destroy()
-		end
-		
+	function self:Destroy()	
+		destroyed = true
 		for _, conn in stateConnections do
-			if not conn then continue end
-			conn:Disconnect()
+			if conn then
+				conn:Disconnect()
+			end
 		end
 		
-		stateConnections = {}
+		table.clear(stateConnections)
+		
+		if childAddedConn then
+			childAddedConn:Disconnect()
+			childAddedConn = nil
+		end
+
+		if childRemovedConn then
+			childRemovedConn:Disconnect()
+			childRemovedConn = nil
+		end
+		
+		for _, context in IIAS.contextedBinds do
+			context.Members[self.Name] = nil
+		end
+		
+		for _, child in InputContext:GetChildren() do
+			child:Destroy()
+		end
+
+		InputContext:Destroy()
+		InputContext = nil
 		
 		self.Activated:DisconnectAll()
 
