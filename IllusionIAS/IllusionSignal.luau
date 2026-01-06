@@ -84,14 +84,25 @@ return {
 			Fire = function(self: IAS.IAScriptSignal, ...: any)
 				local node = head
 				while node do
-					node.fn(...)
+					local fn = node.fn
 					node = node.next
+					if fn then
+						fn(...)
+					end
 				end
 			end,
 
-			DisconnectAll = function(self: IAS.IAScriptSignal)
+			DisconnectAll = function(self)
+				local node = head
+				while node do
+					node.fn = nil::any
+					local nextNode = node.next
+					node.next = nil
+					node = nextNode
+				end
 				head = nil
-			end,
+			end
+
 		}
 
 		return Signal
