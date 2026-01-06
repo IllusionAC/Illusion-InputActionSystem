@@ -12,11 +12,11 @@ local IAS = require("./TypeDefinition")
 
 local REMOVED: IAS.Bind? = nil
 
-local function isKeyCode(value: any): boolean
+@native local function isKeyCode(value: any): boolean
 	return typeof(value) == "EnumItem" and value.EnumType == Enum.KeyCode
 end
 
-local function normalizeModifiers(modifiers: {Enum.KeyCode?}): {Enum.KeyCode?}
+@native local function normalizeModifiers(modifiers: {Enum.KeyCode?}): {Enum.KeyCode?}
 	local seen: { [Enum.KeyCode]: boolean } = {}
 	local result: { Enum.KeyCode? } = {}
 
@@ -35,7 +35,7 @@ local function getBind(binds: IAS.Binds, name: string): IAS.Bind?
 	return binds[name]
 end
 
-local function modifierSetEqual(a: {Enum.KeyCode?}, b: {Enum.KeyCode?}): boolean
+@native local function modifierSetEqual(a: {Enum.KeyCode?}, b: {Enum.KeyCode?}): boolean
 	if #a ~= #b then return false end
 
 	local lookup: { [Enum.KeyCode]: boolean } = {}
@@ -180,7 +180,7 @@ function BindUtils.HasModifier(binds: IAS.Binds, name: string, modifier: Enum.Ke
 	return false
 end
 
-function BindUtils.Clone(binds: IAS.Binds): IAS.Binds
+@native function BindUtils.Clone(binds: IAS.Binds): IAS.Binds
 	local clone: IAS.Binds = {}
 
 	for name, bind in binds do
@@ -196,7 +196,7 @@ function BindUtils.Clone(binds: IAS.Binds): IAS.Binds
 	return clone
 end
 
-function BindUtils.CheckDifferences(base: IAS.Binds, compare: IAS.Binds): (boolean, IAS.Binds?)
+@native function BindUtils.CheckDifferences(base: IAS.Binds, compare: IAS.Binds): (boolean, IAS.Binds?)
 	local differences: IAS.Binds = {}
 	local hasDifferences = false
 
@@ -242,7 +242,7 @@ function BindUtils.CheckDifferences(base: IAS.Binds, compare: IAS.Binds): (boole
 	return false, differences
 end
 
-function BindUtils.ApplyDifferences(target: IAS.Binds, differences: IAS.Binds): boolean
+@native function BindUtils.ApplyDifferences(target: IAS.Binds, differences: IAS.Binds): boolean
 	local changed = false
 
 	for name, diff in differences do
@@ -282,7 +282,7 @@ function BindUtils.ApplyDifferences(target: IAS.Binds, differences: IAS.Binds): 
 	return changed
 end
 
-local function cloneModifiers(mods: {Enum.KeyCode?}): {Enum.KeyCode?}
+@native local function cloneModifiers(mods: {Enum.KeyCode?}): {Enum.KeyCode?}
 	local copy = table.create(#mods) :: {Enum.KeyCode?}
 	for i, k in mods do
 		copy[i] = k
@@ -290,7 +290,7 @@ local function cloneModifiers(mods: {Enum.KeyCode?}): {Enum.KeyCode?}
 	return copy
 end
 
-function BindUtils.GetDifference(base: IAS.Binds, differences: IAS.Binds)
+@native function BindUtils.GetDifference(base: IAS.Binds, differences: IAS.Binds)
 	local results = {}
 
 	for name, diff in differences do
