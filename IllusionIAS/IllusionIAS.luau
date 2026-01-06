@@ -42,7 +42,7 @@ local function instanceDeletion(name, InputContext: InputContext)
 	end
 end
 
-local function valueOfVariantGivesPressed(variant: boolean | number | Vector2 | Vector3): boolean
+@native local function valueOfVariantGivesPressed(variant: boolean | number | Vector2 | Vector3): boolean
 	if typeof(variant) == "boolean" then
 		return variant
 	elseif typeof(variant) == "number" then
@@ -54,7 +54,7 @@ local function valueOfVariantGivesPressed(variant: boolean | number | Vector2 | 
 	end
 end
 
-local function pickBestSatisfiedBind(bindList: {{BindName: string, KeyCode: Enum.KeyCode, Modifiers: {Enum.KeyCode?}}}, modifiersState: { [Enum.KeyCode]: boolean })
+@native local function pickBestSatisfiedBind(bindList: {{BindName: string, KeyCode: Enum.KeyCode, Modifiers: {Enum.KeyCode?}}}, modifiersState: { [Enum.KeyCode]: boolean })
 	local best = nil
 	local bestCount = -1
 
