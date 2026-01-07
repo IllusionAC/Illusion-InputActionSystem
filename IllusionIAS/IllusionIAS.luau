@@ -755,6 +755,9 @@ function IIAS.new(name: string, InputType: Enum.InputActionType?): IAS.Object
 	end
 	
 	function self:Destroy()	
+		if destroyed then
+			return false
+		end
 		destroyed = true
 		for _, conn in stateConnections do
 			if conn then
@@ -778,12 +781,14 @@ function IIAS.new(name: string, InputType: Enum.InputActionType?): IAS.Object
 			context.Members[self.Name] = nil
 		end
 		
-		for _, child in InputContext:GetChildren() do
-			child:Destroy()
-		end
+		if InputContext then
+			for _, child in InputContext:GetChildren() do
+				child:Destroy()
+			end
 
-		InputContext:Destroy()
-		InputContext = nil
+			InputContext:Destroy()
+			InputContext = nil
+		end
 		
 		self.Activated:DisconnectAll()
 
@@ -865,4 +870,5 @@ function IIAS.clearContexts()
 	IIAS.contextedBinds = {}
 end
 
+export type IAScriptConnection = IAS.IAScriptConnection
 return IIAS :: IAS.IllusionIAS
