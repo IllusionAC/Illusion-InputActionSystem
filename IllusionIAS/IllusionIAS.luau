@@ -187,7 +187,7 @@ function IIAS.new(name: string, InputType: Enum.InputActionType?): IAS.Object
 	}
 
 	local modifiersState: { [Enum.KeyCode]: boolean } = {}
-	local stateConnections: { [string]: RBXScriptConnection } = {}
+	local stateConnections: { [string]: RBXScriptConnection? } = {}
 
 	local _PrevBinds = BindUtils.Clone(self.Binds)
 	
@@ -408,7 +408,7 @@ function IIAS.new(name: string, InputType: Enum.InputActionType?): IAS.Object
 
 	local childRemovedConn: RBXScriptConnection? = InputContext.ChildRemoved:Connect(function(child)
 		if stateConnections[child.Name] then
-			stateConnections[child.Name]:Disconnect()
+			(stateConnections[child.Name]::RBXScriptConnection):Disconnect()
 			stateConnections[child.Name] = nil
 		end
 	end)
@@ -762,6 +762,7 @@ function IIAS.new(name: string, InputType: Enum.InputActionType?): IAS.Object
 		for _, conn in stateConnections do
 			if conn then
 				conn:Disconnect()
+				conn = nil
 			end
 		end
 		
@@ -793,6 +794,8 @@ function IIAS.new(name: string, InputType: Enum.InputActionType?): IAS.Object
 		self.Activated:DisconnectAll()
 
 		activeBinds[name] = nil
+		
+		table.clear(self::any)
 		
 		return true
 	end
