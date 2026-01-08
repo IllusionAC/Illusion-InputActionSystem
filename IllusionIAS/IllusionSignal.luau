@@ -66,7 +66,7 @@ return {
 				return conn
 			end,
 
-			Wait = function(self: IAS.IAScriptSignal): ...any
+			Wait = function(self: IAS.IAScriptSignal): IAS.variant
 				local thread = coroutine.running()
 				local conn: IAS.IAScriptConnection
 				local args: {any}? = nil
@@ -81,13 +81,13 @@ return {
 				return table.unpack(args or {})
 			end,
 
-			Fire = function(self: IAS.IAScriptSignal, ...: any)
+			Fire = function(self: IAS.IAScriptSignal, active: IAS.variant, pressed: boolean?)
 				local node = head
 				while node do
 					local fn = node.fn
 					node = node.next
 					if fn then
-						fn(...)
+						fn(active, pressed)
 					end
 				end
 			end,
