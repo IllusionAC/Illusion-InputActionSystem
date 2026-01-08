@@ -102,7 +102,8 @@ function IIAS.new(name: string, InputType: Enum.InputActionType?): IAS.Object
 	end
 		
 	local InputContext: InputContext? = Instance.new("InputContext")
-	if not InputContext then return {}::IAS.Object end
+	if not InputContext then return {} :: IAS.Object end
+	
 	InputContext.Name = name
 	InputContext.Parent = getBindFolder()
 
@@ -200,7 +201,7 @@ function IIAS.new(name: string, InputType: Enum.InputActionType?): IAS.Object
 	}
 
 	local modifiersState: { [Enum.KeyCode]: boolean } = {}
-	local stateConnections: { [string]: RBXScriptConnection? } = {}
+	local stateConnections: { [string]: RBXScriptConnection } = {}
 
 	local _PrevBinds = BindUtils.Clone(self.Binds)
 	
@@ -380,7 +381,7 @@ function IIAS.new(name: string, InputType: Enum.InputActionType?): IAS.Object
 						end
 
 						if self.Hold then
-							activeKeysCounted = {}
+							table.clear(activeKeysCounted)
 							_ActiveBindCount = 0
 							_ActiveMainKey = nil
 							_ActiveBindName = nil
@@ -428,7 +429,7 @@ function IIAS.new(name: string, InputType: Enum.InputActionType?): IAS.Object
 
 	local childRemovedConn: RBXScriptConnection? = InputContext.ChildRemoved:Connect(function(child)
 		if stateConnections[child.Name] then
-			(stateConnections[child.Name]::RBXScriptConnection):Disconnect()
+			stateConnections[child.Name]:Disconnect()
 			stateConnections[child.Name] = nil
 		end
 	end)
@@ -767,15 +768,12 @@ function IIAS.new(name: string, InputType: Enum.InputActionType?): IAS.Object
 	end
 	
 	function self:Destroy()	
-		if destroyed then
-			return false
-		end
+		if destroyed then return false end
 		destroyed = true
-		for _, conn in stateConnections do
-			if conn then
-				conn:Disconnect()
-				conn = nil
-			end
+		
+		for conn in stateConnections do
+			stateConnections[conn]:Disconnect()
+			stateConnections[conn] = nil
 		end
 		
 		table.clear(stateConnections)
@@ -882,7 +880,7 @@ function IIAS.removeContext(name: string)
 end
 
 function IIAS.clearContexts()
-	IIAS.contextedBinds = {}
+	table.clear(IIAS.contextedBinds)
 end
 
 export type IAScriptConnection = IAS.IAScriptConnection
