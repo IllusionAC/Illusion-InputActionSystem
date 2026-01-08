@@ -88,6 +88,18 @@ local activeBinds: { [string]: IAS.Object } = {}
 function IIAS.new(name: string, InputType: Enum.InputActionType?): IAS.Object
 	if activeBinds[name] then return activeBinds[name] end
 	local InputType = InputType or Enum.InputActionType.Bool
+	
+	local variantBaseValue: IAS.variant
+	
+	if InputType == Enum.InputActionType.Bool then
+		variantBaseValue = false
+	elseif InputType == Enum.InputActionType.Direction1D then
+		variantBaseValue = 0
+	elseif InputType == Enum.InputActionType.Direction3D then
+		variantBaseValue = Vector3.zero
+	else
+		variantBaseValue = Vector2.zero
+	end
 		
 	local InputContext: InputContext? = Instance.new("InputContext")
 	if not InputContext then return {}::IAS.Object end
@@ -115,7 +127,7 @@ function IIAS.new(name: string, InputType: Enum.InputActionType?): IAS.Object
 
 		UIButton = nil,
 
-		Active = false,
+		Active = variantBaseValue,
 
 		Enabled = true,
 		Priority = 1000,
@@ -137,6 +149,8 @@ function IIAS.new(name: string, InputType: Enum.InputActionType?): IAS.Object
 		InputBufferTime = 0.15,
 
 		Activated = IASignal.new(),
+		Started = IASignal.new(),
+		Ended = IASignal.new(),
 
 		SetHold = function() end,
 		SetUIButton = function() end,
@@ -169,7 +183,6 @@ function IIAS.new(name: string, InputType: Enum.InputActionType?): IAS.Object
 		GetReleasedThreshold = function(): number return 0.2 end,
 		
 		GetState = function(): IAS.variant return 0 end,
-		GetStates = function(): {[string]: IAS.variant} return {} end,
 
 		SetInputBufferEnabled = function() end,
 		SetInputBufferTime = function() end,
@@ -211,8 +224,15 @@ function IIAS.new(name: string, InputType: Enum.InputActionType?): IAS.Object
 
 	local function fire(value: IAS.variant, pressed: boolean)
 		if not self.Enabled then return end
+
 		self.Active = value
 		self.Activated:Fire(value, pressed)
+
+		if pressed then
+			self.Started:Fire(value)
+		else
+			self.Ended:Fire(value)
+		end
 	end
 	
 	local function tryConsumeBuffer()
@@ -418,6 +438,7 @@ function IIAS.new(name: string, InputType: Enum.InputActionType?): IAS.Object
 	
 	local rebuilding = false
 	local destroyed = false
+	
 	local function rebuild()
 		if rebuilding then return end
 		if destroyed then return end
@@ -531,7 +552,8 @@ function IIAS.new(name: string, InputType: Enum.InputActionType?): IAS.Object
 		if not enabled then
 			table.clear(modifiersState)
 			_ActiveBindName = nil
-			self.Activated:Fire(false, false)
+			self.Activated:Fire(variantBaseValue, false)
+			self.Ended:Fire(variantBaseValue)
 		end
 
 		InputContext.Enabled = self.Enabled
@@ -616,17 +638,7 @@ function IIAS.new(name: string, InputType: Enum.InputActionType?): IAS.Object
 	end
 	
 	function self:GetState(): IAS.variant
-		return InputAction:GetState()
-	end
-	
-	function self:GetStates(): {[string]: IAS.variant}
-		local newx: {[string]: IAS.variant} = {}
-		for _, v in InputContext:GetChildren() do
-			if v:IsA("InputAction") then
-				newx[v.Name] = v:GetState()
-			end
-		end
-		return newx
+		return self.Active
 	end
 
 	function self:ClearBinds()
@@ -792,10 +804,10 @@ function IIAS.new(name: string, InputType: Enum.InputActionType?): IAS.Object
 		end
 		
 		self.Activated:DisconnectAll()
+		self.Started:DisconnectAll()
+		self.Ended:DisconnectAll()
 
 		activeBinds[name] = nil
-		
-		table.clear(self::any)
 		
 		return true
 	end
