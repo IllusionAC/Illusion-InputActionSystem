@@ -40,7 +40,7 @@ local IAS = require(game.ReplicatedStorage.IllusionIAS)
 
 ### Server Authority version:
 
-Currently Unavailable as it's really not done.
+More details really soon.
 
 > **Note:** When updates are released, re-download from the Creator Store or pull from GitHub.
 ---
@@ -62,7 +62,7 @@ IIAS.isContextEnabled(name: string)                -- returns the context's acti
 IIAS.clearContexts()                               -- clear all contexts
 IIAS.removeContext(name: string)                   -- remove a context
 IIAS.removeFromContext(name: string, bind: Object) -- remove a bind from a context
-IIAS.removeAllFromContext(name: string)            -- empty a context without deleting it
+IIAS.removeAllFromContext(name: string): empty a context without deleting it
 
 ```
 
@@ -133,6 +133,8 @@ Keybind.Sink         -- InputContext sinkability
 Keybind.Hold         -- Hold mode state
 Keybind.Cooldown     -- Cooldown duration
 Keybind.Activated    -- IAScriptSignal event
+Keybind.Started      -- IAScriptSignal event, equivalent to input began
+Keybind.Ended        -- IAScriptSignal event, equivalent to input ended
 Keybind.Scale        -- InputBinding Scale, for Directions
 Keybind.VectorScale  -- InputBinding VectorScale, for Direction2D and 3D
 Keybind.ResponseCurve -- InputBinding ResponseCurve, for Directions
@@ -140,7 +142,7 @@ Keybind.PressedThreshold -- InputBinding PressedThreshold, for Bool
 Keybind.ReleasedThreshold -- InputBinding ReleasedThreshold, for Bool
 ```
 
-The `Activated` event works like standard Roblox signals with `:Connect()`, `:Once()`, `:Wait()`, and `:Fire()` methods. This library uses [IllusionSignal](https://github.com/IllusionAC/IllusionSignal) module.
+The `Activated`, `Started`  and `Ended` events works like standard Roblox signals with `:Connect()`, `:Once()`, `:Wait()`, and `:Fire()` methods. This library uses [IllusionSignal](https://github.com/IllusionAC/IllusionSignal) module.
 
 ---
 
