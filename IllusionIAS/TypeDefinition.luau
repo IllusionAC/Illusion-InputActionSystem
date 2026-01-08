@@ -18,8 +18,8 @@ export type IAScriptConnection = {
 export type IAScriptSignal = {
 	Connect: (self: IAScriptSignal, fn: func) -> IAScriptConnection,
 	Once: (self: IAScriptSignal, fn: func) -> IAScriptConnection,
-	Fire: (self: IAScriptSignal, ...any) -> (),
-	Wait: (self: IAScriptSignal) -> ...any,
+	Fire: (self: IAScriptSignal, active: variant, pressed: boolean?) -> (),
+	Wait: (self: IAScriptSignal) -> (variant, boolean?),
 	DisconnectAll: (self: IAScriptSignal) -> (),
 }
 
