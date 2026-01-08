@@ -12,7 +12,7 @@ return {
 	new = function(): IAS.IAScriptSignal
 		local head: IAS.Node? = nil
 
-		local function createConnection(node: IAS.Node, prev: IAS.Node?): IAS.IAScriptConnection
+		local function createConnection(node: IAS.Node): IAS.IAScriptConnection
 			local connected = true
 
 			local conn: IAS.IAScriptConnection = {
