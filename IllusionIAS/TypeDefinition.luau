@@ -8,7 +8,7 @@
 
 export type variant = boolean | number | Vector2 | Vector3
 
-export type func = (active: variant, pressed: boolean) -> ()
+export type func = (active: variant, pressed: boolean?) -> ()
 
 export type IAScriptConnection = {
 	Connected: boolean,
@@ -79,6 +79,9 @@ export type Object = {
 	InputBufferTime: number,
 
 	Activated: IAScriptSignal,
+	Started: IAScriptSignal,
+	Ended: IAScriptSignal,
+
 	
 	SetHold: (self: Object, bool: boolean) -> (),
 	SetUIButton: (self: Object, button: GuiButton?) -> (),
@@ -111,7 +114,6 @@ export type Object = {
 	GetReleasedThreshold: (self: Object) -> (number),
 	
 	GetState: (self: Object) -> (variant),
-	GetStates: (self: Object) -> ({[string]: variant}),
 	
 	SetInputBufferEnabled: (self: Object, bool: boolean) -> (),
 	SetInputBufferTime: (self: Object, t: number) -> (),
