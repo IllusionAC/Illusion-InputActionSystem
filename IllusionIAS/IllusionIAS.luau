@@ -434,7 +434,7 @@ function IIAS.new(name: string, InputType: Enum.InputActionType?): IAS.Object
 		end
 	end)
 	
-	local InputAction, InputBinding = instanceSetup(MainName, InputType, InputContext)
+	local _, InputBinding = instanceSetup(MainName, InputType, InputContext)
 	local _, UIButtonBinding = instanceSetup("UIButton", Enum.InputActionType.Bool, InputContext)
 	
 	local rebuilding = false
