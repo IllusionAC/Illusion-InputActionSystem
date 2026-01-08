@@ -131,7 +131,7 @@ export type Object = {
 }
 
 export type IllusionIAS = {
-	contextedBinds: { [string]: { Object } },
+	contextedBinds: { [string]: { Enabled: boolean, Members: {[string]: boolean} } },
 	new: (name: string, inputType: Enum.InputActionType?) -> Object,
 	get: (name: string) -> Object?,
 	getAll: () -> {[string]: Object},
