@@ -40,7 +40,9 @@ local IAS = require(game.ReplicatedStorage.IllusionIAS)
 
 ### Server Authority version:
 
-More details really soon.
+Do the same steps as for normal version, but require the module from a Server Script.
+
+Future updates will allow the developer to send proper data to client so he can edit their binds properly.
 
 > **Note:** When updates are released, re-download from the Creator Store or pull from GitHub.
 ---
@@ -53,6 +55,9 @@ More details really soon.
 IIAS.new(name: string, InputType: Enum.InputActionType?) -- Create a new keybind, set a InputActionType (default to Bool)
 IIAS.Get(name: string?)                                  -- Retrieve a specific bind
 IIAS.GetAll()                                            -- Get all registered binds
+
+-- IMPORTANT: Context here doesn't stand for InputContext
+-- but rather a way to organize your binds.
 
 IIAS.addContext(name: string, ...Object)           -- add a Bind to a context
 IIAS.getContext(name: string)                      -- returns a context
