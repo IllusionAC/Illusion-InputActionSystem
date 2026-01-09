@@ -19,7 +19,7 @@ export type IAScriptSignal = {
 	Connect: (self: IAScriptSignal, fn: func) -> IAScriptConnection,
 	Once: (self: IAScriptSignal, fn: func) -> IAScriptConnection,
 	Fire: (self: IAScriptSignal, active: variant, pressed: boolean?) -> (),
-	Wait: (self: IAScriptSignal) -> (variant, boolean?),
+	Wait: (self: IAScriptSignal) -> variant,
 	DisconnectAll: (self: IAScriptSignal) -> (),
 }
 
@@ -42,10 +42,10 @@ export type DiffList = {
 	ChangeType: string,
 	OldKeyCode: Enum.KeyCode?,
 	NewKeyCode: Enum.KeyCode?,
-	OldModifiers: {Enum.KeyCode?},
-	NewModifiers: {Enum.KeyCode?},
-	AddedModifiers: {Enum.KeyCode?},
-	RemovedModifiers: {Enum.KeyCode?},
+	OldModifiers: {Enum.KeyCode},
+	NewModifiers: {Enum.KeyCode},
+	AddedModifiers: {Enum.KeyCode},
+	RemovedModifiers: {Enum.KeyCode},
 }
 
 export type Object = {
@@ -118,7 +118,8 @@ export type Object = {
 	SetInputBufferEnabled: (self: Object, bool: boolean) -> (),
 	SetInputBufferTime: (self: Object, t: number) -> (),
 
-	GetBinds: (self: Object) -> {Binds},
+	GetBinds: (self: Object) -> (Binds),
+	
 	AddBind: (self: Object, mainKey: Enum.KeyCode, ...(Enum.KeyCode?)) -> (),
 	SetBind: (self: Object, mainKey:  Enum.KeyCode, ...(Enum.KeyCode?)) -> (),
 	RemoveBind: (self: Object, mainKey: Enum.KeyCode, ...(Enum.KeyCode?)) -> (),
