@@ -10,7 +10,10 @@ local BindUtils = {}
 
 local IAS = require("./TypeDefinition")
 
-local REMOVED: IAS.Bind? = nil
+local REMOVED: IAS.Bind = {
+	KeyCode = Enum.KeyCode.Unknown,
+	Modifier = {}
+}
 
 @native local function isKeyCode(value: any): boolean
 	return typeof(value) == "EnumItem" and value.EnumType == Enum.KeyCode
@@ -163,7 +166,10 @@ function BindUtils.GetModifiers(binds: IAS.Binds, name: string): { Enum.KeyCode 
 	if not bind then return nil end
 
 	local result = table.create(#bind.Modifier) :: {Enum.KeyCode}
-	for i, v in bind.Modifier do result[i] = v end
+	for i, v in bind.Modifier do 
+		if not v then continue end
+		result[i] = v 
+	end
 	return result
 end
 
@@ -282,16 +288,17 @@ end
 	return changed
 end
 
-@native local function cloneModifiers(mods: {Enum.KeyCode?}): {Enum.KeyCode?}
-	local copy = table.create(#mods) :: {Enum.KeyCode?}
+@native local function cloneModifiers(mods: {Enum.KeyCode?}): {Enum.KeyCode}
+	local copy = table.create(#mods) :: {Enum.KeyCode}
 	for i, k in mods do
+		if not k then continue end
 		copy[i] = k
 	end
 	return copy
 end
 
 @native function BindUtils.GetDifference(base: IAS.Binds, differences: IAS.Binds)
-	local results = {}
+	local results: {IAS.DiffList} = {}
 
 	for name, diff in differences do
 		local baseBind = base[name]
@@ -306,9 +313,9 @@ end
 					NewKeyCode = nil,
 
 					OldModifiers = cloneModifiers(baseBind.Modifier),
-					NewModifiers = {},
+					NewModifiers = cloneModifiers({}),
 
-					AddedModifiers = {},
+					AddedModifiers = cloneModifiers({}),
 					RemovedModifiers = cloneModifiers(baseBind.Modifier),
 				})
 			end
@@ -323,11 +330,11 @@ end
 				OldKeyCode = nil,
 				NewKeyCode = diff.KeyCode,
 
-				OldModifiers = {},
+				OldModifiers = cloneModifiers({}),
 				NewModifiers = cloneModifiers(diff.Modifier),
 
 				AddedModifiers = cloneModifiers(diff.Modifier),
-				RemovedModifiers = {},
+				RemovedModifiers = cloneModifiers({}),
 			})
 			continue
 		end
