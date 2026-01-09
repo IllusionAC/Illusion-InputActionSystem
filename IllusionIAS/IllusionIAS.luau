@@ -85,9 +85,9 @@ IIAS.contextedBinds = {} :: {[string]: {Enabled: boolean, Members: {[string]: bo
 
 local activeBinds: { [string]: IAS.Object } = {}
 
-function IIAS.new(name: string, InputType: Enum.InputActionType?): IAS.Object
+function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
 	if activeBinds[name] then return activeBinds[name] end
-	local InputType = InputType or Enum.InputActionType.Bool
+	local InputType = inputType or Enum.InputActionType.Bool
 	
 	local variantBaseValue: IAS.variant
 	
@@ -189,7 +189,7 @@ function IIAS.new(name: string, InputType: Enum.InputActionType?): IAS.Object
 		SetInputBufferTime = function() end,
 		
 		ClearBinds = function() end,
-		GetBinds = function(): {IAS.Binds} return {} end,
+		GetBinds = function(): IAS.Binds return {} end,
 		AddBind = function() end,
 		SetBind = function() end,
 		RemoveBind = function() end,
@@ -451,7 +451,7 @@ function IIAS.new(name: string, InputType: Enum.InputActionType?): IAS.Object
 		table.clear(modifiersState)
 
 		if not isEqual and differences then		
-			local diffs = BindUtils.GetDifference(_PrevBinds, differences) :: {IAS.DiffList}
+			local diffs = BindUtils.GetDifference(_PrevBinds, differences) 
 
 			for _, diff in diffs do
 				if diff.ChangeType == "Modified" then
@@ -460,9 +460,8 @@ function IIAS.new(name: string, InputType: Enum.InputActionType?): IAS.Object
 					end
 
 					for _, key in diff.AddedModifiers do
-						key = key or Enum.KeyCode.Unknown
-						local _, modbinding = instanceSetup(`{MainName}_Mod_{key.Name}`, Enum.InputActionType.Bool, InputContext)
-						modbinding.KeyCode = key
+						local _, modbinding = instanceSetup(`{MainName}_Mod_{(key or Enum.KeyCode.Unknown).Name}`, Enum.InputActionType.Bool, InputContext)
+						modbinding.KeyCode = key or Enum.KeyCode.Unknown
 					end
 
 					for _, key in diff.RemovedModifiers do
@@ -475,8 +474,8 @@ function IIAS.new(name: string, InputType: Enum.InputActionType?): IAS.Object
 
 					for _, key in diff.AddedModifiers do
 						key = key or Enum.KeyCode.Unknown
-						local _, altmodbinding = instanceSetup(`{diff.BindName}_Mod_{key.Name}`, Enum.InputActionType.Bool, InputContext)
-						altmodbinding.KeyCode = key
+						local _, altmodbinding = instanceSetup(`{diff.BindName}_Mod_{(key or Enum.KeyCode.Unknown).Name}`, Enum.InputActionType.Bool, InputContext)
+						altmodbinding.KeyCode = key or Enum.KeyCode.Unknown
 					end
 
 				elseif diff.ChangeType == "Removed" then
@@ -524,7 +523,7 @@ function IIAS.new(name: string, InputType: Enum.InputActionType?): IAS.Object
 	function self:SetUIButton(button: GuiButton?)
 		if InputType == Enum.InputActionType.Bool then
 			self.UIButton = button
-			UIButtonBinding.UIButton = self.UIButton
+			UIButtonBinding.UIButton = self.UIButton :: GuiButton
 		end
 	end
 
@@ -726,9 +725,9 @@ function IIAS.new(name: string, InputType: Enum.InputActionType?): IAS.Object
 	
 	function self:EditBind(
 		oldMain: Enum.KeyCode,
-		oldMods: {Enum.KeyCode?}?,
+		oldMods: {Enum.KeyCode?},
 		newMain: Enum.KeyCode,
-		newMods: {Enum.KeyCode?}?
+		newMods: {Enum.KeyCode?}
 	)
 		if not oldMain or not newMain then return end
 
