@@ -66,7 +66,7 @@ return {
 				return conn
 			end,
 
-			Wait = function(self: IAS.IAScriptSignal): (IAS.variant, boolean)
+			Wait = function(self: IAS.IAScriptSignal): IAS.variant
 				local thread = coroutine.running()
 				local conn: IAS.IAScriptConnection
 				local args: {any}? = nil
