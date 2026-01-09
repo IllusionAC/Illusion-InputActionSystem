@@ -82,6 +82,7 @@ export type Object = {
 	Started: IAScriptSignal,
 	Ended: IAScriptSignal,
 
+	Fire: (self: Object, active: variant, pressed: boolean) -> (),
 	
 	SetHold: (self: Object, bool: boolean) -> (),
 	SetUIButton: (self: Object, button: GuiButton?) -> (),
