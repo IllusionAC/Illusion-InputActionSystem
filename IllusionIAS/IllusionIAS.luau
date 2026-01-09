@@ -153,6 +153,8 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
 		Started = IASignal.new(),
 		Ended = IASignal.new(),
 
+		Fire = function() end,
+		
 		SetHold = function() end,
 		SetUIButton = function() end,
 		SetTapActivation = function() end,
@@ -515,6 +517,10 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
 	end
 
 	rebuild()
+	
+	function self:Fire(active, pressed)
+		fire(active, pressed)
+	end
 		
 	function self:SetHold(bool: boolean)
 		self.Hold = bool
