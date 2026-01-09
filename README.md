@@ -115,6 +115,8 @@ IIAS.removeAllFromContext(name: string): empty a context without deleting it
 ### InputActionType management
 
 ```lua
+:Fire(active, pressed)           -- Fire the bind manually
+:GetState()                      -- Returns active state
 :SetScale(scale)                 -- Set Scale for Directions
 :GetScale()                      -- Get Scale for Directions
 :SetVectorScale(vector)          -- Set VectorScale for Directions
