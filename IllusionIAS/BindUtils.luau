@@ -12,58 +12,26 @@ local IAS = require("./TypeDefinition")
 
 local REMOVED: IAS.Bind = {
 	KeyCode = Enum.KeyCode.Unknown,
-	Modifier = {}
+	PrimaryModifier = Enum.KeyCode.Unknown,
+	SecondaryModifier = Enum.KeyCode.Unknown
 }
 
 @native local function isKeyCode(value: any): boolean
 	return typeof(value) == "EnumItem" and value.EnumType == Enum.KeyCode
 end
 
-@native local function normalizeModifiers(modifiers: {Enum.KeyCode?}): {Enum.KeyCode?}
-	local seen: { [Enum.KeyCode]: boolean } = {}
-	local result: { Enum.KeyCode? } = {}
-
-	for _, key in modifiers do
-		if not key then continue end
-		if isKeyCode(key) and not seen[key] then
-			seen[key] = true
-			table.insert(result, key)
-		end
-	end
-
-	return result
-end
-
 local function getBind(binds: IAS.Binds, name: string): IAS.Bind?
 	return binds[name]
 end
 
-@native local function modifierSetEqual(a: {Enum.KeyCode?}, b: {Enum.KeyCode?}): boolean
-	if #a ~= #b then return false end
-
-	local lookup: { [Enum.KeyCode]: boolean } = {}
-	for _, key in a do
-		if not key then continue end
-		lookup[key] = true
-	end
-
-	for _, key in b do
-		if not key then continue end
-		if not lookup[key] then
-			return false
-		end
-	end
-
-	return true
-end
-
-function BindUtils.AddBind(binds: IAS.Binds, name: string, keyCode: Enum.KeyCode?, modifiers: {Enum.KeyCode?}): boolean
+function BindUtils.AddBind(binds: IAS.Binds, name: string, keyCode: Enum.KeyCode?, PrimaryModifier: Enum.KeyCode?, SecondaryModifier: Enum.KeyCode?): boolean
 
 	if binds[name] ~= nil then return false end
 
 	binds[name] = {
 		KeyCode = if isKeyCode(keyCode) and keyCode then keyCode else Enum.KeyCode.Unknown,
-		Modifier = normalizeModifiers(modifiers),
+		PrimaryModifier = if isKeyCode(PrimaryModifier) and PrimaryModifier then PrimaryModifier else Enum.KeyCode.Unknown,
+		SecondaryModifier = if isKeyCode(SecondaryModifier) and SecondaryModifier then SecondaryModifier else Enum.KeyCode.Unknown
 	}
 
 	return true
@@ -82,10 +50,11 @@ local function setKeyCode(binds: IAS.Binds, name: string, keyCode: Enum.KeyCode)
 	return true
 end
 
-local function setModifiers(binds: IAS.Binds, name: string, modifiers: { Enum.KeyCode? }): boolean
+local function setModifiers(binds: IAS.Binds, name: string, PrimaryModifier: Enum.KeyCode?, SecondaryModifier: Enum.KeyCode?): boolean
 	local bind = getBind(binds, name)
 	if not bind then return false end
-	bind.Modifier = modifiers
+	bind.PrimaryModifier = PrimaryModifier or Enum.KeyCode.Unknown
+	bind.SecondaryModifier = SecondaryModifier or Enum.KeyCode.Unknown
 	return true
 end
 
@@ -97,36 +66,8 @@ function BindUtils.ResetKeyCode(binds, name)
 	return setKeyCode(binds, name, Enum.KeyCode.Unknown)
 end
 
-function BindUtils.AddModifier(binds: IAS.Binds, name: string, modifier: Enum.KeyCode): boolean
-	local bind = getBind(binds, name)
-	if not bind then return false end
-
-	for _, existing in bind.Modifier do
-		if existing == modifier then return true end
-	end
-
-	table.insert(bind.Modifier, modifier)
-	return true
-end
-
-function BindUtils.RemoveModifier(binds: IAS.Binds, name: string, modifier: Enum.KeyCode): boolean
-	local bind = getBind(binds, name)
-	if not bind then
-		return false
-	end
-
-	for i = #bind.Modifier, 1, -1 do
-		if bind.Modifier[i] == modifier then
-			table.remove(bind.Modifier, i)
-			return true
-		end
-	end
-
-	return false
-end
-
 function BindUtils.ClearModifiers(binds, name)
-	return setModifiers(binds, name, {})
+	return setModifiers(binds, name)
 end
 
 function BindUtils.ResetBinds(binds: IAS.Binds): boolean
@@ -136,66 +77,26 @@ function BindUtils.ResetBinds(binds: IAS.Binds): boolean
 
 	binds.MainAction = {
 		KeyCode = Enum.KeyCode.Unknown,
-		Modifier = {},
-	}
-	
-	binds.UIButton = {
-		KeyCode = Enum.KeyCode.Unknown,
-		Modifier = {},
+		PrimaryModifier = Enum.KeyCode.Unknown,
+		SecondaryModifier = Enum.KeyCode.Unknown
 	}
 
 	return true
 end
 
 
-function BindUtils.SetModifiers(binds, name, modifiers)
-	return setModifiers(binds, name, normalizeModifiers(modifiers))
-end
-
-function BindUtils.HasBind(binds: IAS.Binds, name: string): boolean
-	return binds[name] ~= nil
-end
-
-function BindUtils.GetKeyCode(binds: IAS.Binds, name: string): Enum.KeyCode?
-	local bind = getBind(binds, name)
-	return bind and bind.KeyCode or nil
-end
-
-function BindUtils.GetModifiers(binds: IAS.Binds, name: string): { Enum.KeyCode }?
-	local bind = getBind(binds, name)
-	if not bind then return nil end
-
-	local result = table.create(#bind.Modifier) :: {Enum.KeyCode}
-	for i, v in bind.Modifier do 
-		if not v then continue end
-		result[i] = v 
-	end
-	return result
-end
-
-function BindUtils.HasModifier(binds: IAS.Binds, name: string, modifier: Enum.KeyCode): boolean
-	local bind = getBind(binds, name)
-	if not bind then return false end
-
-	for _, key in bind.Modifier do
-		if key == modifier then
-			return true
-		end
-	end
-
-	return false
+function BindUtils.SetModifiers(binds, name, PrimaryModifier, SecondaryModifier)
+	return setModifiers(binds, name, PrimaryModifier, SecondaryModifier)
 end
 
 @native function BindUtils.Clone(binds: IAS.Binds): IAS.Binds
 	local clone: IAS.Binds = {}
 
 	for name, bind in binds do
-		local modifiersCopy = table.create(#bind.Modifier) :: {Enum.KeyCode?}
-		for i, key in bind.Modifier do modifiersCopy[i] = key end
-
 		clone[name] = {
 			KeyCode = bind.KeyCode,
-			Modifier = modifiersCopy,
+			PrimaryModifier = bind.PrimaryModifier,
+			SecondaryModifier = bind.SecondaryModifier
 		}
 	end
 
@@ -213,7 +114,8 @@ end
 			hasDifferences = true
 			differences[name] = {
 				KeyCode = compareBind.KeyCode,
-				Modifier = table.clone(compareBind.Modifier),
+				PrimaryModifier = compareBind.PrimaryModifier,
+				SecondaryModifier = compareBind.SecondaryModifier
 			}
 			continue
 		end
@@ -224,9 +126,14 @@ end
 			entryDiff.KeyCode = compareBind.KeyCode
 		end
 
-		if not modifierSetEqual(baseBind.Modifier, compareBind.Modifier) then
-			entryDiff.Modifier = table.clone(compareBind.Modifier)
+		if baseBind.PrimaryModifier ~= compareBind.PrimaryModifier then
+			entryDiff.PrimaryModifier = compareBind.PrimaryModifier
 		end
+
+		if baseBind.SecondaryModifier ~= compareBind.SecondaryModifier then
+			entryDiff.SecondaryModifier = compareBind.SecondaryModifier
+		end
+
 
 		if next(entryDiff) ~= nil then
 			hasDifferences = true
@@ -264,7 +171,8 @@ end
 		if not bind then
 			bind = {
 				KeyCode = Enum.KeyCode.Unknown,
-				Modifier = {},
+				PrimaryModifier = Enum.KeyCode.Unknown,
+				SecondaryModifier = Enum.KeyCode.Unknown,
 			}
 			target[name] = bind
 			changed = true
@@ -275,48 +183,55 @@ end
 			changed = true
 		end
 
-		if diff.Modifier ~= nil then
-			local mods: {Enum.KeyCode?} = table.create(#diff.Modifier):: {Enum.KeyCode?}
-			for i, key in diff.Modifier do
-				mods[i] = key
-			end
-			bind.Modifier = mods
+		if diff.PrimaryModifier ~= nil and bind.PrimaryModifier ~= diff.PrimaryModifier then
+			bind.PrimaryModifier = diff.PrimaryModifier
 			changed = true
 		end
+
+		if diff.SecondaryModifier ~= nil and bind.SecondaryModifier ~= diff.SecondaryModifier then
+			bind.SecondaryModifier = diff.SecondaryModifier
+			changed = true
+		end
+
 	end
 
 	return changed
 end
 
-@native local function cloneModifiers(mods: {Enum.KeyCode?}): {Enum.KeyCode}
-	local copy = table.create(#mods) :: {Enum.KeyCode}
-	for i, k in mods do
-		if not k then continue end
-		copy[i] = k
-	end
-	return copy
-end
-
 @native function BindUtils.GetDifference(base: IAS.Binds, differences: IAS.Binds)
-	local results: {IAS.DiffList} = {}
+	local results: { IAS.DiffList } = {}
 
-	for name, diff in differences do
-		local baseBind = base[name]
-		
+	for bindName, diff in differences do
+		local baseBind = base[bindName]
+
 		if diff == REMOVED then
 			if baseBind then
 				table.insert(results, {
-					BindName = name,
+					BindName = bindName,
 					ChangeType = "Removed",
 
 					OldKeyCode = baseBind.KeyCode,
 					NewKeyCode = nil,
 
-					OldModifiers = cloneModifiers(baseBind.Modifier),
-					NewModifiers = cloneModifiers({}),
+					OldModifiers = {
+						PrimaryModifier = baseBind.PrimaryModifier,
+						SecondaryModifier = baseBind.SecondaryModifier,
+					},
 
-					AddedModifiers = cloneModifiers({}),
-					RemovedModifiers = cloneModifiers(baseBind.Modifier),
+					NewModifiers = {
+						PrimaryModifier = Enum.KeyCode.Unknown,
+						SecondaryModifier = Enum.KeyCode.Unknown,
+					},
+
+					AddedModifiers = {
+						PrimaryModifier = Enum.KeyCode.Unknown,
+						SecondaryModifier = Enum.KeyCode.Unknown,
+					},
+
+					RemovedModifiers = {
+						PrimaryModifier = baseBind.PrimaryModifier,
+						SecondaryModifier = baseBind.SecondaryModifier,
+					},
 				})
 			end
 			continue
@@ -324,63 +239,89 @@ end
 
 		if not baseBind then
 			table.insert(results, {
-				BindName = name,
+				BindName = bindName,
 				ChangeType = "Added",
 
 				OldKeyCode = nil,
 				NewKeyCode = diff.KeyCode,
 
-				OldModifiers = cloneModifiers({}),
-				NewModifiers = cloneModifiers(diff.Modifier),
+				OldModifiers = {
+					PrimaryModifier = Enum.KeyCode.Unknown,
+					SecondaryModifier = Enum.KeyCode.Unknown,
+				},
 
-				AddedModifiers = cloneModifiers(diff.Modifier),
-				RemovedModifiers = cloneModifiers({}),
+				NewModifiers = {
+					PrimaryModifier = diff.PrimaryModifier,
+					SecondaryModifier = diff.SecondaryModifier,
+				},
+
+				AddedModifiers = {
+					PrimaryModifier = diff.PrimaryModifier,
+					SecondaryModifier = diff.SecondaryModifier,
+				},
+
+				RemovedModifiers = {
+					PrimaryModifier = Enum.KeyCode.Unknown,
+					SecondaryModifier = Enum.KeyCode.Unknown,
+				},
 			})
 			continue
 		end
 
-		local oldMods = baseBind.Modifier
-		local newMods = diff.Modifier or oldMods
+		local oldPM = baseBind.PrimaryModifier
+		local oldSM = baseBind.SecondaryModifier
+		local newPM = diff.PrimaryModifier or oldPM
+		local newSM = diff.SecondaryModifier or oldSM
 
-		local oldLookup: {[Enum.KeyCode]: boolean} = {}
-		for _, k in oldMods do
-			if not k then continue end
-			oldLookup[k] = true
-		end
+		local addedPM = Enum.KeyCode.Unknown
+		local addedSM = Enum.KeyCode.Unknown
+		local removedPM = Enum.KeyCode.Unknown
+		local removedSM = Enum.KeyCode.Unknown
 
-		local newLookup: {[Enum.KeyCode]: boolean} = {}
-		for _, k in newMods do
-			if not k then continue end
-			newLookup[k] = true
-		end
-
-		local added = {}
-		local removed = {}
-
-		for k in newLookup do
-			if not oldLookup[k] then
-				table.insert(added, k)
+		if oldPM ~= newPM then
+			if newPM ~= Enum.KeyCode.Unknown then
+				addedPM = newPM
+			end
+			if oldPM ~= Enum.KeyCode.Unknown then
+				removedPM = oldPM
 			end
 		end
 
-		for k in oldLookup do
-			if not newLookup[k] then
-				table.insert(removed, k)
+		if oldSM ~= newSM then
+			if newSM ~= Enum.KeyCode.Unknown then
+				addedSM = newSM
+			end
+			if oldSM ~= Enum.KeyCode.Unknown then
+				removedSM = oldSM
 			end
 		end
 
 		table.insert(results, {
-			BindName = name,
+			BindName = bindName,
 			ChangeType = "Modified",
 
 			OldKeyCode = baseBind.KeyCode,
 			NewKeyCode = diff.KeyCode or baseBind.KeyCode,
 
-			OldModifiers = cloneModifiers(oldMods),
-			NewModifiers = cloneModifiers(newMods),
+			OldModifiers = {
+				PrimaryModifier = oldPM,
+				SecondaryModifier = oldSM,
+			},
 
-			AddedModifiers = added,
-			RemovedModifiers = removed,
+			NewModifiers = {
+				PrimaryModifier = newPM,
+				SecondaryModifier = newSM,
+			},
+
+			AddedModifiers = {
+				PrimaryModifier = addedPM,
+				SecondaryModifier = addedSM,
+			},
+
+			RemovedModifiers = {
+				PrimaryModifier = removedPM,
+				SecondaryModifier = removedSM,
+			},
 		})
 	end
 
