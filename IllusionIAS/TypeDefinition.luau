@@ -30,7 +30,8 @@ export type Node = {
 
 export type Bind = {
 	KeyCode: Enum.KeyCode,
-	Modifier: { Enum.KeyCode? },
+	PrimaryModifier: Enum.KeyCode,
+	SecondaryModifier: Enum.KeyCode
 }
 
 export type Binds = {
@@ -42,10 +43,10 @@ export type DiffList = {
 	ChangeType: string,
 	OldKeyCode: Enum.KeyCode?,
 	NewKeyCode: Enum.KeyCode?,
-	OldModifiers: {Enum.KeyCode},
-	NewModifiers: {Enum.KeyCode},
-	AddedModifiers: {Enum.KeyCode},
-	RemovedModifiers: {Enum.KeyCode},
+	OldModifiers: {	PrimaryModifier: Enum.KeyCode, SecondaryModifier: Enum.KeyCode },
+	NewModifiers: {	PrimaryModifier: Enum.KeyCode, SecondaryModifier: Enum.KeyCode },
+	AddedModifiers: { PrimaryModifier: Enum.KeyCode, SecondaryModifier: Enum.KeyCode },
+	RemovedModifiers: {	PrimaryModifier: Enum.KeyCode, SecondaryModifier: Enum.KeyCode },
 }
 
 export type Object = {
@@ -121,29 +122,34 @@ export type Object = {
 
 	GetBinds: (self: Object) -> (Binds),
 	
-	AddBind: (self: Object, mainKey: Enum.KeyCode, ...(Enum.KeyCode?)) -> (),
-	SetBind: (self: Object, mainKey:  Enum.KeyCode, ...(Enum.KeyCode?)) -> (),
-	RemoveBind: (self: Object, mainKey: Enum.KeyCode, ...(Enum.KeyCode?)) -> (),
-	EditBind: (self: Object, oldMain: Enum.KeyCode, oldMods: {Enum.KeyCode?}, newMain: Enum.KeyCode, newMods: {Enum.KeyCode?}) -> (),
+	AddBind: (self: Object, mainKey: Enum.KeyCode, PrimaryModifier: Enum.KeyCode?, SecondaryModifier: Enum.KeyCode?) -> (),
+	SetBind: (self: Object, mainKey:  Enum.KeyCode, PrimaryModifier: Enum.KeyCode?, SecondaryModifier: Enum.KeyCode?) -> (),
+	RemoveBind: (self: Object, mainKey: Enum.KeyCode, PrimaryModifier: Enum.KeyCode?, SecondaryModifier: Enum.KeyCode?) -> (),
+	EditBind: (self: Object, oldMain: Enum.KeyCode, oldMods: {PrimaryModifier: Enum.KeyCode?, SecondaryModifier: Enum.KeyCode? }, newMain: Enum.KeyCode, newMods: {	PrimaryModifier: Enum.KeyCode?, SecondaryModifier: Enum.KeyCode? }) -> (),
 	ClearBinds: (self: Object) -> (),
 	
 	SetCompositeDirections: (self: Object, up: Enum.KeyCode?, down: Enum.KeyCode?, left: Enum.KeyCode?, right: Enum.KeyCode?, forward: Enum.KeyCode?, backward: Enum.KeyCode?) -> (),
+	SetCompositeModifiers: (self: Object, PrimaryModifier: Enum.KeyCode?, SecondaryModifier: Enum.KeyCode?) -> (),
 	
 	Destroy: (self: Object) -> (boolean),
 }
 
+export type Context = { Enabled: boolean, Members: {[string]: boolean}}
+
+export type Contexts = { [string]: Context }
+
 export type IllusionIAS = {
-	contextedBinds: { [string]: { Enabled: boolean, Members: {[string]: boolean} } },
+	contextedBinds: Contexts,
 	new: (name: string, inputType: Enum.InputActionType?) -> Object,
 	get: (name: string) -> Object?,
 	getAll: () -> {[string]: Object},
 	newContext: (name: string) -> (),
-	getContext: (name: string) -> ({Enabled: boolean, Members: {[string]: boolean}}),
+	getContext: (name: string) -> (Context),
 	addContext: (name: string, ...Object) -> (),
 	enableContext: (name: string, enabled: boolean) -> (), 
 	isContextEnabled: (name: string) -> boolean,
 	removeContext: (name: string) -> (),
-	removeFromContext: (name: string) -> (),
+	removeFromContext: (name: string, bind: Object) -> (),
 	removeAllFromContext: (name: string) -> (),
 	clearContexts: () -> (),
 }
