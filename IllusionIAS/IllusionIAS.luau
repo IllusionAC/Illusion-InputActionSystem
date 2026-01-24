@@ -37,12 +37,10 @@ end
 
 local function instanceDeletion(name, InputContext: InputContext)
 	local inputAction = InputContext:FindFirstChild(name)
-	if inputAction then
-		inputAction:Destroy()
-	end
+	if inputAction then inputAction:Destroy() end
 end
 
-@native local function valueOfVariantGivesPressed(variant: boolean | number | Vector2 | Vector3): boolean
+@native local function valueOfVariantGivesPressed(variant: IAS.variant): boolean
 	if typeof(variant) == "boolean" then
 		return variant
 	elseif typeof(variant) == "number" then
@@ -54,34 +52,8 @@ end
 	end
 end
 
-@native local function pickBestSatisfiedBind(bindList: {{BindName: string, KeyCode: Enum.KeyCode, Modifiers: {Enum.KeyCode?}}}, modifiersState: { [Enum.KeyCode]: boolean })
-	local best = nil
-	local bestCount = -1
-
-	for _, bind in bindList do
-		local ok = true
-		local count = 0
-
-		for _, mod in bind.Modifiers do
-			if not mod then continue end
-			if not modifiersState[mod] then
-				ok = false
-				break
-			end
-			count += 1
-		end
-
-		if ok and count > bestCount then
-			best = bind
-			bestCount = count
-		end
-	end
-
-	return best
-end
-
-local IIAS = {}
-IIAS.contextedBinds = {} :: {[string]: {Enabled: boolean, Members: {[string]: boolean}}}
+local IIAS = {} :: IAS.IllusionIAS
+IIAS.contextedBinds = {}
 
 local activeBinds: { [string]: IAS.Object } = {}
 
@@ -117,13 +89,9 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
 		Binds = {
 			MainAction = {
 				KeyCode = Enum.KeyCode.Unknown, 
-				Modifier = {}
-			},
-			
-			UIButton = {
-				KeyCode = Enum.KeyCode.Unknown, 
-				Modifier = {}
-			},
+				PrimaryModifier = Enum.KeyCode.Unknown,
+				SecondaryModifier = Enum.KeyCode.Unknown
+			}
 		},
 
 		UIButton = nil,
@@ -198,11 +166,11 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
 		EditBind = function() end,
 
 		SetCompositeDirections = function() end,
+		SetCompositeModifiers = function() end,
 
 		Destroy = function(): boolean return false end,
 	}
 
-	local modifiersState: { [Enum.KeyCode]: boolean } = {}
 	local stateConnections: { [string]: RBXScriptConnection } = {}
 
 	local _PrevBinds = BindUtils.Clone(self.Binds)
@@ -213,17 +181,14 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
 	local _TapCount = 0
 	local _ActiveBindCount = 0
 	
-	local _ActiveBindName: string? = nil
 	local _ActiveMainKey: Enum.KeyCode? = nil
 
 	local _Buffered = false
 	local _BufferedTime = 0
 	local _BufferedKey: Enum.KeyCode? = nil
 
-	local mainKeysDown: { [Enum.KeyCode]: boolean } = {}
 	local activeKeysCounted: { [Enum.KeyCode]: boolean } = {}
 	local blockedPresses: { [Enum.KeyCode]: boolean } = {}
-	local bindsByMainKey: {[Enum.KeyCode]: {{BindName: string, KeyCode: Enum.KeyCode, Modifiers: {Enum.KeyCode?}}}} = {}
 
 	local function fire(value: IAS.variant, pressed: boolean)
 		if not self.Enabled then return end
@@ -269,7 +234,6 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
 			_ActiveBindCount = 1
 			if self.Cooldown > 0 then _CooldownUntil = now + self.Cooldown end
 			fire(true, true)
-			_ActiveBindName = nil
 			return true
 		else
 			if self.Cooldown > 0 then _CooldownUntil = now + self.Cooldown end
@@ -282,150 +246,124 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
 	end
 	
 	local childAddedConn: RBXScriptConnection? = InputContext.ChildAdded:Connect(function(child)
-		if child:IsA("InputAction") then
-			if child.Name:find("_Mod_") then
-				stateConnections[child.Name] = child.StateChanged:Connect(function(bool: boolean)
-					local binding = child:FindFirstChildOfClass("InputBinding")
-					if not binding then return end
-
-					modifiersState[binding.KeyCode] = bool
-				end)
+		if child:IsA("InputAction") then			
+			stateConnections[child.Name] = child.StateChanged:Connect(function(variant: IAS.variant)
+				if not self.Enabled then return end
 				
-			elseif child.Name:find("AltAction") or child.Name == MainName or child.Name == "UIButton" then
-				stateConnections[child.Name] = child.StateChanged:Connect(function(variant: IAS.variant)
-					if not self.Enabled then return end
+				local pressed = valueOfVariantGivesPressed(variant)
+				
+				local inputBinding = child:FindFirstChildOfClass("InputBinding")
+				if not inputBinding then return end
+				
+				local keyEnum = inputBinding.KeyCode
+				
+				local now = time()
+				
+				if InputType == Enum.InputActionType.Bool then
 					
-					local pressed = valueOfVariantGivesPressed(variant)
-					
-					local inputBinding = child:FindFirstChildOfClass("InputBinding")
-					if not inputBinding then return end
-					
-					local keyEnum = inputBinding.KeyCode
-					if keyEnum == Enum.KeyCode.Unknown and child.Name ~= "UIButton" then
-						if InputType == Enum.InputActionType.Bool or InputType == Enum.InputActionType.ViewportPosition then
+					if pressed then
+						if _ActiveMainKey and _ActiveMainKey ~= keyEnum then
+							if self.InputBufferEnabled then
+								_Buffered = true
+								_BufferedTime = now
+								_BufferedKey = keyEnum
+							end
+
 							return
 						end
-					end
-					
-					local now = time()
-					
-					if InputType == Enum.InputActionType.Bool then
-						mainKeysDown[keyEnum] = pressed
-						local bindList = bindsByMainKey[keyEnum]
-						local bestBind = bindList and pickBestSatisfiedBind(bindList, modifiersState)
-						
-						if pressed then
-							if _ActiveMainKey and _ActiveMainKey ~= keyEnum then
-								if self.InputBufferEnabled then
-									_Buffered = true
-									_BufferedTime = now
-									_BufferedKey = keyEnum
-								end
 
-								return
-							end
-
-							if self.TapRequired > 1 then
-								if now - _LastTapTime > self.TapWindow then
-									_TapCount = 1
-								else
-									_TapCount += 1
-								end
-								_LastTapTime = now
-
-								if _TapCount < self.TapRequired then
-									return
-								end
-							end
-
-							if not bestBind then
-								return
-							end
-
-							if self.Cooldown > 0 and now < _CooldownUntil then
-								fire(false, true)
-								blockedPresses[keyEnum] = true
-								return
-							end
-
-							if self.Cooldown > 0 then
-								_CooldownUntil = now + self.Cooldown
-							end
-
-							if self.Hold then
-								_ActiveBindName = bestBind and bestBind.BindName
-
-								_ActiveMainKey = keyEnum
-								activeKeysCounted = { [keyEnum] = true }
-								_ActiveBindCount = 1
-								fire(true, true)
+						if self.TapRequired > 1 then
+							if now - _LastTapTime > self.TapWindow then
+								_TapCount = 1
 							else
-								_ActiveBindName = bestBind and bestBind.BindName
-								
-								_ToggleState = not _ToggleState
-								_ActiveMainKey = keyEnum
-								activeKeysCounted = { [keyEnum] = true }
-								fire(_ToggleState, true)
+								_TapCount += 1
 							end
+							_LastTapTime = now
 
-							_TapCount = 0
-							return
+							if _TapCount < self.TapRequired then
+								return
+							end
 						end
 
-						if blockedPresses[keyEnum] then
-							blockedPresses[keyEnum] = nil
-							fire(false, false)
-							return
-						end
-
-						if not activeKeysCounted[keyEnum] then
-							return
-						end
-
-						if self.Hold then
-							table.clear(activeKeysCounted)
-							_ActiveBindCount = 0
-							_ActiveMainKey = nil
-							_ActiveBindName = nil
-							_ToggleState = false
-							fire(false, false)
-
-							tryConsumeBuffer()
-							return							
-						end
-						
-						if _TapCount == 0 and _ActiveBindName then
-							fire(_ToggleState, false)
-						end
-						
-						if keyEnum == _ActiveMainKey then
-							_ActiveMainKey = nil
-							_ActiveBindName = nil
-							tryConsumeBuffer()
-						end
-
-						return
-							
-					elseif InputType == Enum.InputActionType.Direction1D or InputType == Enum.InputActionType.Direction2D or InputType == Enum.InputActionType.Direction3D then
-						-- IMPORTANT:
-						-- This section works but is not FINISHED
-						-- You will be able to use it but without Hold, tapRequired or Cooldown.
-						fire(variant, pressed)
-					elseif InputType == Enum.InputActionType.ViewportPosition then
 						if self.Cooldown > 0 and now < _CooldownUntil then
-							fire(Vector2.zero, false)
+							fire(false, true)
+							blockedPresses[keyEnum] = true
 							return
 						end
 
 						if self.Cooldown > 0 then
 							_CooldownUntil = now + self.Cooldown
 						end
-						
-						fire(variant, true)
+
+						if self.Hold then
+
+							_ActiveMainKey = keyEnum
+							activeKeysCounted = { [keyEnum] = true }
+							_ActiveBindCount = 1
+							fire(true, true)
+						else
+							
+							_ToggleState = not _ToggleState
+							_ActiveMainKey = keyEnum
+							activeKeysCounted = { [keyEnum] = true }
+							fire(_ToggleState, true)
+						end
+
+						_TapCount = 0
 						return
 					end
-				end)
-			end
+
+					if blockedPresses[keyEnum] then
+						blockedPresses[keyEnum] = nil
+						fire(false, false)
+						return
+					end
+
+					if not activeKeysCounted[keyEnum] then
+						return
+					end
+
+					if self.Hold then
+						table.clear(activeKeysCounted)
+						_ActiveBindCount = 0
+						_ActiveMainKey = nil
+						_ToggleState = false
+						fire(false, false)
+
+						tryConsumeBuffer()
+						return							
+					end
+					
+					if _TapCount == 0 then
+						fire(_ToggleState, false)
+					end
+					
+					if keyEnum == _ActiveMainKey then
+						_ActiveMainKey = nil
+						tryConsumeBuffer()
+					end
+
+					return
+						
+				elseif InputType == Enum.InputActionType.Direction1D or InputType == Enum.InputActionType.Direction2D or InputType == Enum.InputActionType.Direction3D then
+					-- IMPORTANT:
+					-- This section works but is not FINISHED
+					-- You will be able to use it but without Hold, tapRequired or Cooldown.
+					fire(variant, pressed)
+				elseif InputType == Enum.InputActionType.ViewportPosition then
+					if self.Cooldown > 0 and now < _CooldownUntil then
+						fire(Vector2.zero, false)
+						return
+					end
+
+					if self.Cooldown > 0 then
+						_CooldownUntil = now + self.Cooldown
+					end
+					
+					fire(variant, true)
+					return
+				end
+			end)
 		end
 	end)
 
@@ -437,82 +375,48 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
 	end)
 	
 	local _, InputBinding = instanceSetup(MainName, InputType, InputContext)
-	local _, UIButtonBinding = instanceSetup("UIButton", Enum.InputActionType.Bool, InputContext)
 	
 	local rebuilding = false
 	local destroyed = false
 	
 	local function rebuild()
-		if rebuilding then return end
-		if destroyed then return end
+		if rebuilding or destroyed then return end
 		rebuilding = true
-								
-		local isEqual, differences = BindUtils.CheckDifferences(_PrevBinds, self.Binds)
-		
-		table.clear(bindsByMainKey)
-		table.clear(modifiersState)
 
-		if not isEqual and differences then		
-			local diffs = BindUtils.GetDifference(_PrevBinds, differences) 
+		local isEqual, differences = BindUtils.CheckDifferences(_PrevBinds, self.Binds)
+		if not isEqual and differences then
+			local diffs = BindUtils.GetDifference(_PrevBinds, differences)
 
 			for _, diff in diffs do
-				if diff.ChangeType == "Modified" then
-					if diff.OldKeyCode ~= diff.NewKeyCode and diff.NewKeyCode then
-						InputBinding.KeyCode = diff.NewKeyCode
-					end
+				if diff.ChangeType == "Added" then
+					local _, binding = instanceSetup(diff.BindName, InputType, InputContext)
+					binding.KeyCode = diff.NewKeyCode or Enum.KeyCode.Unknown
+					binding.PrimaryModifier = diff.NewModifiers.PrimaryModifier
+					binding.SecondaryModifier = diff.NewModifiers.SecondaryModifier
 
-					for _, key in diff.AddedModifiers do
-						local _, modbinding = instanceSetup(`{MainName}_Mod_{(key or Enum.KeyCode.Unknown).Name}`, Enum.InputActionType.Bool, InputContext)
-						modbinding.KeyCode = key or Enum.KeyCode.Unknown
-					end
+				elseif diff.ChangeType == "Modified" then
+					local action = InputContext:FindFirstChild(diff.BindName)
+					if action then
+						local binding = action:FindFirstChildOfClass("InputBinding")
+						if binding then
+							if diff.NewKeyCode then
+								binding.KeyCode = diff.NewKeyCode
+							end
 
-					for _, key in diff.RemovedModifiers do
-						instanceDeletion(`{MainName}_Mod_{(key or Enum.KeyCode.Unknown).Name}`, InputContext)
-					end
-
-				elseif diff.ChangeType == "Added" then
-					local _, altbinding = instanceSetup(diff.BindName, InputType, InputContext)
-					altbinding.KeyCode = diff.NewKeyCode or Enum.KeyCode.Unknown
-
-					for _, key in diff.AddedModifiers do
-						key = key or Enum.KeyCode.Unknown
-						local _, altmodbinding = instanceSetup(`{diff.BindName}_Mod_{(key or Enum.KeyCode.Unknown).Name}`, Enum.InputActionType.Bool, InputContext)
-						altmodbinding.KeyCode = key or Enum.KeyCode.Unknown
+							binding.PrimaryModifier = diff.NewModifiers.PrimaryModifier
+							binding.SecondaryModifier = diff.NewModifiers.SecondaryModifier
+						end
 					end
 
 				elseif diff.ChangeType == "Removed" then
 					instanceDeletion(diff.BindName, InputContext)
-
-					for _, key in diff.RemovedModifiers do
-						instanceDeletion(`{diff.BindName}_Mod_{(key or Enum.KeyCode.Unknown).Name}`, InputContext)
-					end
 				end
 			end
 
 			BindUtils.ApplyDifferences(_PrevBinds, differences)
-			
-			for bindName, bind in self.Binds do
-				local mainKey = bind.KeyCode
-				if not mainKey then continue end
-
-				bindsByMainKey[mainKey] = bindsByMainKey[mainKey] or {}
-
-				table.insert(bindsByMainKey[mainKey], {
-					BindName = bindName,
-					KeyCode = mainKey,
-					Modifiers = table.clone(bind.Modifier),
-				})
-
-				for _, mod in bind.Modifier do
-					if mod then
-						modifiersState[mod] = false
-					end
-				end
-			end
-
 			_PrevBinds = BindUtils.Clone(self.Binds)
 		end
-					
+
 		rebuilding = false
 	end
 
@@ -529,7 +433,7 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
 	function self:SetUIButton(button: GuiButton?)
 		if InputType == Enum.InputActionType.Bool then
 			self.UIButton = button
-			UIButtonBinding.UIButton = self.UIButton :: GuiButton
+			InputBinding.UIButton = self.UIButton :: GuiButton
 		end
 	end
 
@@ -556,8 +460,6 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
 		self.Enabled = enabled
 
 		if not enabled then
-			table.clear(modifiersState)
-			_ActiveBindName = nil
 			self.Activated:Fire(variantBaseValue, false)
 			self.Ended:Fire(variantBaseValue)
 		end
@@ -656,16 +558,12 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
 		return BindUtils.Clone(self.Binds)
 	end
 	
-	function self:AddBind(mainKey: Enum.KeyCode, ...: Enum.KeyCode?)
-		if mainKey == Enum.KeyCode.Unknown then
-			return
-		end
-
-		local modifiers = { ... }
+	function self:AddBind(mainKey: Enum.KeyCode, PrimaryModifier: Enum.KeyCode?, SecondaryModifier: Enum.KeyCode?)
+		if mainKey == Enum.KeyCode.Unknown then return end
 
 		for bindName, bind in self.Binds do
 			if bind.KeyCode == mainKey then
-				BindUtils.SetModifiers(self.Binds, bindName, modifiers)
+				BindUtils.SetModifiers(self.Binds, bindName, PrimaryModifier, SecondaryModifier)
 				rebuild()
 				return
 			end
@@ -675,7 +573,7 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
 
 		if mainBind and mainBind.KeyCode == Enum.KeyCode.Unknown then
 			BindUtils.SetKeyCode(self.Binds, MainName, mainKey)
-			BindUtils.SetModifiers(self.Binds, MainName, modifiers)
+			BindUtils.SetModifiers(self.Binds, MainName, PrimaryModifier, SecondaryModifier)
 			rebuild()
 			return
 		end
@@ -688,20 +586,18 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
 			index += 1
 		until not self.Binds[bindName]
 
-		BindUtils.AddBind(self.Binds, bindName, mainKey, modifiers)
+		BindUtils.AddBind(self.Binds, bindName, mainKey, PrimaryModifier, SecondaryModifier)
 		rebuild()
 		return
 	end
 	
-	function self:SetBind(mainKey: Enum.KeyCode, ...: Enum.KeyCode?)
+	function self:SetBind(mainKey: Enum.KeyCode, PrimaryModifier: Enum.KeyCode?, SecondaryModifier: Enum.KeyCode?)
 		self:ClearBinds()
-		self:AddBind(mainKey, ...)
+		self:AddBind(mainKey, PrimaryModifier, SecondaryModifier)
 	end
 	
-	function self:RemoveBind(mainKey: Enum.KeyCode, ...: Enum.KeyCode?)
+	function self:RemoveBind(mainKey: Enum.KeyCode, PrimaryModifier: Enum.KeyCode?, SecondaryModifier: Enum.KeyCode?)
 		if not mainKey then return end
-
-		local targetMods = { ... }
 
 		for bindName, bind in self.Binds do
 			if bind.KeyCode ~= mainKey then
@@ -709,13 +605,11 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
 			end
 
 			local equal = BindUtils.CheckDifferences(
-				{ X = { KeyCode = mainKey, Modifier = bind.Modifier } },
-				{ X = { KeyCode = mainKey, Modifier = targetMods } }
+				{ X = { KeyCode = mainKey, PrimaryModifier = bind.PrimaryModifier, SecondaryModifier = bind.SecondaryModifier } },
+				{ X = { KeyCode = mainKey, PrimaryModifier = PrimaryModifier or Enum.KeyCode.Unknown, SecondaryModifier = SecondaryModifier or Enum.KeyCode.Unknown } }
 			)
 
-			if not equal then
-				continue
-			end
+			if not equal then continue end
 
 			if bindName == "MainAction" then
 				BindUtils.ResetKeyCode(self.Binds, "MainAction")
@@ -731,31 +625,24 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
 	
 	function self:EditBind(
 		oldMain: Enum.KeyCode,
-		oldMods: {Enum.KeyCode?},
+		oldMods: {PrimaryModifier: Enum.KeyCode?, SecondaryModifier: Enum.KeyCode? },
 		newMain: Enum.KeyCode,
-		newMods: {Enum.KeyCode?}
+		newMods: {PrimaryModifier: Enum.KeyCode?, SecondaryModifier: Enum.KeyCode? }
 	)
 		if not oldMain or not newMain then return end
 
-		oldMods = oldMods or {}
-		newMods = newMods or {}
-
 		for bindName, bind in self.Binds do
-			if bind.KeyCode ~= oldMain then
-				continue
-			end
+			if bind.KeyCode ~= oldMain then continue end
 
 			local equal = BindUtils.CheckDifferences(
-				{ X = { KeyCode = oldMain, Modifier = bind.Modifier } },
-				{ X = { KeyCode = oldMain, Modifier = oldMods } }
+				{ X = { KeyCode = oldMain, PrimaryModifier = bind.PrimaryModifier, SecondaryModifier = bind.SecondaryModifier } },
+				{ X = { KeyCode = oldMain, PrimaryModifier = oldMods.PrimaryModifier or Enum.KeyCode.Unknown, SecondaryModifier = oldMods.SecondaryModifier or Enum.KeyCode.Unknown } }
 			)
 
-			if not equal then
-				continue
-			end
+			if not equal then continue end
 
 			BindUtils.SetKeyCode(self.Binds, bindName, newMain)
-			BindUtils.SetModifiers(self.Binds, bindName, newMods)
+			BindUtils.SetModifiers(self.Binds, bindName, newMods.PrimaryModifier, newMods.SecondaryModifier)
 
 			rebuild()
 			return
@@ -770,6 +657,12 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
 		InputBinding.Right = Right or Enum.KeyCode.Unknown
 		InputBinding.Forward = Forward or Enum.KeyCode.Unknown
 		InputBinding.Backward = Backward or Enum.KeyCode.Unknown
+	end
+	
+	function self:SetCompositeModifiers(PrimaryModifier: Enum.KeyCode?, SecondaryModifier: Enum.KeyCode?)
+		if InputType == Enum.InputActionType.Bool or InputType == Enum.InputActionType.ViewportPosition then return end
+		InputBinding.PrimaryModifier = PrimaryModifier or Enum.KeyCode.Unknown
+		InputBinding.SecondaryModifier = SecondaryModifier or Enum.KeyCode.Unknown
 	end
 	
 	function self:Destroy()	
@@ -889,4 +782,5 @@ function IIAS.clearContexts()
 end
 
 export type IAScriptConnection = IAS.IAScriptConnection
-return IIAS :: IAS.IllusionIAS
+
+return IIAS
