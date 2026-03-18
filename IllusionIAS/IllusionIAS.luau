@@ -106,6 +106,9 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
 		VectorScale = InputType == Enum.InputActionType.Direction2D and Vector2.one or Vector3.one,
 		ResponseCurve = 1,
 
+		PointerIndex = 1,
+		ClampMagnitudeToOne = true,
+
 		PressedThreshold = 0.5,
 		ReleasedThreshold = 0.2,
 
@@ -152,6 +155,12 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
 
 		SetReleasedThreshold = function() end,
 		GetReleasedThreshold = function(): number return 0.2 end,
+		
+		SetPointerIndex = function() end,
+		GetPointerIndex = function(): number return 1 end,
+
+		SetClampMagnitudeToOne = function() end,
+		GetClampMagnitudeToOne = function(): boolean return true end,
 		
 		GetState = function(): IAS.variant return 0 end,
 
@@ -526,6 +535,7 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
 	
 	function self:SetPressedThreshold(threshold: number)
 		self.PressedThreshold = threshold
+		InputBinding.PressedThreshold = self.PressedThreshold
 	end
 	
 	function self:GetPressedThreshold()
@@ -534,10 +544,29 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
 	
 	function self:SetReleasedThreshold(threshold: number)
 		self.ReleasedThreshold = threshold
+		InputBinding.ReleasedThreshold = self.ReleasedThreshold
 	end
 	
 	function self:GetReleasedThreshold()
 		return self.ReleasedThreshold
+	end
+	
+	function self:SetPointerIndex(index)
+		self.PointerIndex = index
+		InputBinding.PointerIndex = self.PointerIndex
+	end
+	
+	function self:GetPointerIndex()
+		return self.PointerIndex
+	end
+
+	function self:SetClampMagnitudeToOne(bool) 
+		self.ClampMagnitudeToOne = bool
+		InputBinding.ClampMagnitudeToOne = self.ClampMagnitudeToOne
+	end
+	
+	function self:GetClampMagnitudeToOne()
+		return self.ClampMagnitudeToOne
 	end
 
 	function self:SetInputBufferTime(t: number)
