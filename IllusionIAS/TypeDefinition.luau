@@ -68,6 +68,9 @@ export type Object = {
 	VectorScale: Vector2 | Vector3,
 	ResponseCurve: number,
 	
+	PointerIndex: number,
+	ClampMagnitudeToOne : boolean,
+	
 	PressedThreshold: number,
 	ReleasedThreshold: number,
 
@@ -114,6 +117,12 @@ export type Object = {
 	
 	SetReleasedThreshold: (self: Object, threshold: number) -> (),
 	GetReleasedThreshold: (self: Object) -> (number),
+	
+	SetPointerIndex: (self: Object, index: number) -> (),
+	GetPointerIndex: (self: Object) -> (number),
+	
+	SetClampMagnitudeToOne: (self: Object, bool: boolean) -> (),
+	GetClampMagnitudeToOne: (self: Object) -> (boolean),
 	
 	GetState: (self: Object) -> (variant),
 	
