@@ -130,6 +130,16 @@ export type Object = {
 	SetInputBufferTime: (self: Object, t: number) -> (),
 
 	GetBinds: (self: Object) -> (Binds),
+
+	GetCooldownRemaining: (self: Object) -> (number),
+	IsBuffered: (self: Object) -> (boolean),
+	ResetBuffer: (self: Object) -> (),
+	GetBufferedVariant: (self: Object) -> (variant?),
+	GetBufferedKey: (self: Object) -> (Enum.KeyCode?),
+	GetActiveBindCount: (self: Object) -> (number),
+	GetToggleState: (self: Object) -> (boolean),
+	GetActiveMainKey: (self: Object) -> (Enum.KeyCode?),
+
 	
 	AddBind: (self: Object, mainKey: Enum.KeyCode, PrimaryModifier: Enum.KeyCode?, SecondaryModifier: Enum.KeyCode?) -> (),
 	SetBind: (self: Object, mainKey:  Enum.KeyCode, PrimaryModifier: Enum.KeyCode?, SecondaryModifier: Enum.KeyCode?) -> (),

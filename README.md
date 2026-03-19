@@ -127,6 +127,25 @@ IIAS.removeAllFromContext(name: string): empty a context without deleting it
 :GetPressedThreshold()           -- Get Pressed Threshold for Bool
 :SetReleasedThreshold(threshold) -- Set Released Threshold for Bool
 :GetReleasedThreshold()          -- Get Released Threshold for Bool
+:SetPointerIndex(Object, index) -> (),
+:GetPointerIndex(Object) -> (number),
+:SetClampMagnitudeToOne(Object, bool) -> (),
+:GetClampMagnitudeToOne(Object) -> (boolean),
+```
+
+---
+
+## Utilities / Introspection
+
+```lua
+:GetCooldownRemaining() -- number: seconds remaining on the current cooldown (0 if none).
+:IsBuffered() -- boolean: whether an input is currently buffered.
+:ResetBuffer() -- void: clears any buffered input.
+:GetBufferedVariant() -- variant?: the buffered variant value (Vector/number/bool), if present.
+:GetBufferedKey() -- `Enum.KeyCode?`: the buffered key code, if present.
+:GetActiveBindCount() -- number: how many binds are currently active.
+:GetToggleState() -- boolean: current toggle state for toggle-mode binds.
+:GetActiveMainKey() -- `Enum.KeyCode?`: which main key is currently active, if any.
 ```
 
 ### Properties
@@ -147,6 +166,8 @@ Keybind.VectorScale  -- InputBinding VectorScale, for Direction2D and 3D
 Keybind.ResponseCurve -- InputBinding ResponseCurve, for Directions
 Keybind.PressedThreshold -- InputBinding PressedThreshold, for Bool
 Keybind.ReleasedThreshold -- InputBinding ReleasedThreshold, for Bool
+Keybind.PointerIndex
+Keybind.ClampMagnitudeToOne
 ```
 
 The `Activated`, `Started`  and `Ended` events works like standard Roblox signals with `:Connect()`, `:Once()`, `:Wait()`, and `:Fire()` methods. This library uses [IllusionSignal](https://github.com/IllusionAC/IllusionSignal) module.

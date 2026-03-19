@@ -167,6 +167,17 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
 		SetInputBufferEnabled = function() end,
 		SetInputBufferTime = function() end,
 		
+		GetCooldownRemaining = function(): number return 0 end,
+		IsBuffered = function(): boolean return false end,
+		ResetBuffer = function() end,
+
+		GetBufferedVariant = function(): IAS.variant? return 0 end,
+		GetBufferedKey = function(): Enum.KeyCode? return Enum.KeyCode.Unknown end,
+
+		GetActiveBindCount = function(): number return 0 end,
+		GetActiveMainKey = function(): Enum.KeyCode? return Enum.KeyCode.Unknown end,
+		GetToggleState = function(): boolean return false end,
+
 		ClearBinds = function() end,
 		GetBinds = function(): IAS.Binds return {} end,
 		AddBind = function() end,
@@ -195,6 +206,7 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
 	local _Buffered = false
 	local _BufferedTime = 0
 	local _BufferedKey: Enum.KeyCode? = nil
+	local _BufferedVariant: IAS.variant? = nil
 
 	local activeKeysCounted: { [Enum.KeyCode]: boolean } = {}
 	local blockedPresses: { [Enum.KeyCode]: boolean } = {}
@@ -218,6 +230,7 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
 		if (time() - _BufferedTime) > self.InputBufferTime then
 			_Buffered = false
 			_BufferedKey = nil
+			_BufferedVariant = nil
 			return false
 		end
 
@@ -229,28 +242,50 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
 		if self.Cooldown > 0 and now < _CooldownUntil then
 			_Buffered = false
 			_BufferedKey = nil
+			_BufferedVariant = nil
 			return false
 		end
 
 		_Buffered = false
 		if not _BufferedKey then return false end
 		local keyEnum = _BufferedKey
+		local bufferedVariant = _BufferedVariant
 		_BufferedKey = nil
+		_BufferedVariant = nil
 
-		if self.Hold then
-			_ActiveMainKey = keyEnum
-			activeKeysCounted = { [keyEnum] = true }
-			_ActiveBindCount = 1
-			if self.Cooldown > 0 then _CooldownUntil = now + self.Cooldown end
-			fire(true, true)
-			return true
+		if InputType == Enum.InputActionType.Bool then
+			if self.Hold then
+				_ActiveMainKey = keyEnum
+				activeKeysCounted = { [keyEnum] = true }
+				_ActiveBindCount = 1
+				if self.Cooldown > 0 then _CooldownUntil = now + self.Cooldown end
+				fire(true, true)
+				return true
+			else
+				if self.Cooldown > 0 then _CooldownUntil = now + self.Cooldown end
+				_ToggleState = not _ToggleState
+				_ActiveMainKey = keyEnum
+				activeKeysCounted = { [keyEnum] = true }
+				fire(_ToggleState, true)
+				return true
+			end
 		else
-			if self.Cooldown > 0 then _CooldownUntil = now + self.Cooldown end
-			_ToggleState = not _ToggleState
-			_ActiveMainKey = keyEnum
-			activeKeysCounted = { [keyEnum] = true }
-			fire(_ToggleState, true)
-			return true
+			local toFire = bufferedVariant or variantBaseValue
+			if self.Hold then
+				_ActiveMainKey = keyEnum
+				activeKeysCounted = { [keyEnum] = true }
+				_ActiveBindCount = 1
+				if self.Cooldown > 0 then _CooldownUntil = now + self.Cooldown end
+				fire(toFire, true)
+				return true
+			else
+				if self.Cooldown > 0 then _CooldownUntil = now + self.Cooldown end
+				_ToggleState = not _ToggleState
+				_ActiveMainKey = keyEnum
+				activeKeysCounted = { [keyEnum] = true }
+				fire((_ToggleState) and toFire or variantBaseValue, true)
+				return true
+			end
 		end
 	end
 	
@@ -265,11 +300,10 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
 				if not inputBinding then return end
 				
 				local keyEnum = inputBinding.KeyCode
-				
+
 				local now = time()
 				
 				if InputType == Enum.InputActionType.Bool then
-					
 					if pressed then
 						if _ActiveMainKey and _ActiveMainKey ~= keyEnum then
 							if self.InputBufferEnabled then
@@ -305,13 +339,11 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
 						end
 
 						if self.Hold then
-
 							_ActiveMainKey = keyEnum
 							activeKeysCounted = { [keyEnum] = true }
 							_ActiveBindCount = 1
 							fire(true, true)
 						else
-							
 							_ToggleState = not _ToggleState
 							_ActiveMainKey = keyEnum
 							activeKeysCounted = { [keyEnum] = true }
@@ -340,36 +372,101 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
 						fire(false, false)
 
 						tryConsumeBuffer()
-						return							
+						return
 					end
-					
+
 					if _TapCount == 0 then
 						fire(_ToggleState, false)
 					end
-					
+
 					if keyEnum == _ActiveMainKey then
 						_ActiveMainKey = nil
 						tryConsumeBuffer()
 					end
 
 					return
-						
-				elseif InputType == Enum.InputActionType.Direction1D or InputType == Enum.InputActionType.Direction2D or InputType == Enum.InputActionType.Direction3D then
-					-- IMPORTANT:
-					-- This section works but is not FINISHED
-					-- You will be able to use it but without Hold, tapRequired or Cooldown.
-					fire(variant, pressed)
-				elseif InputType == Enum.InputActionType.ViewportPosition then
-					if self.Cooldown > 0 and now < _CooldownUntil then
-						fire(Vector2.zero, false)
+				elseif InputType == Enum.InputActionType.Direction1D or InputType == Enum.InputActionType.Direction2D or InputType == Enum.InputActionType.Direction3D or InputType == Enum.InputActionType.ViewportPosition then
+					if pressed then
+						if _ActiveMainKey and _ActiveMainKey ~= keyEnum then
+							if self.InputBufferEnabled then
+								_Buffered = true
+								_BufferedTime = now
+								_BufferedKey = keyEnum
+								_BufferedVariant = variant
+							end
+
+							return
+						end
+
+						if self.TapRequired > 1 then
+							if now - _LastTapTime > self.TapWindow then
+								_TapCount = 1
+							else
+								_TapCount += 1
+							end
+							_LastTapTime = now
+
+							if _TapCount < self.TapRequired then
+								return
+							end
+						end
+
+						if self.Cooldown > 0 and now < _CooldownUntil then
+							fire(variantBaseValue, true)
+							blockedPresses[keyEnum] = true
+							return
+						end
+
+						if self.Cooldown > 0 then
+							_CooldownUntil = now + self.Cooldown
+						end
+
+						if self.Hold then
+							_ActiveMainKey = keyEnum
+							activeKeysCounted = { [keyEnum] = true }
+							_ActiveBindCount = 1
+							fire(variant, true)
+						else
+							_ToggleState = not _ToggleState
+							_ActiveMainKey = keyEnum
+							activeKeysCounted = { [keyEnum] = true }
+							fire((_ToggleState) and variant or variantBaseValue, true)
+						end
+
+						_TapCount = 0
 						return
 					end
 
-					if self.Cooldown > 0 then
-						_CooldownUntil = now + self.Cooldown
+					if blockedPresses[keyEnum] then
+						blockedPresses[keyEnum] = nil
+						fire(variantBaseValue, false)
+						return
 					end
-					
-					fire(variant, true)
+
+					if not activeKeysCounted[keyEnum] then
+						return
+					end
+
+					if self.Hold then
+						table.clear(activeKeysCounted)
+						_ActiveBindCount = 0
+						_ActiveMainKey = nil
+						_ToggleState = false
+						fire(variantBaseValue, false)
+
+						tryConsumeBuffer()
+						return
+					end
+
+					if _TapCount == 0 then
+						fire((_ToggleState) and variant or variantBaseValue, false)
+					end
+
+					if keyEnum == _ActiveMainKey then
+						_ActiveMainKey = nil
+						tryConsumeBuffer()
+					end
+
 					return
 				end
 			end)
@@ -576,6 +673,42 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
 	
 	function self:GetState(): IAS.variant
 		return self.Active
+	end
+
+	function self:GetCooldownRemaining()
+		local now = time()
+		return math.max(0, _CooldownUntil - now)
+	end
+
+	function self:IsBuffered()
+		return _Buffered
+	end
+
+	function self:ResetBuffer()
+		_Buffered = false
+		_BufferedTime = 0
+		_BufferedKey = nil
+		_BufferedVariant = nil
+	end
+
+	function self:GetBufferedVariant()
+		return _BufferedVariant
+	end
+
+	function self:GetBufferedKey()
+		return _BufferedKey
+	end
+
+	function self:GetActiveBindCount()
+		return _ActiveBindCount
+	end
+
+	function self:GetToggleState()
+		return _ToggleState
+	end
+
+	function self:GetActiveMainKey()
+		return _ActiveMainKey
 	end
 
 	function self:ClearBinds()
