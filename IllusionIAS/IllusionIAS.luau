@@ -385,7 +385,7 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
 					end
 
 					return
-				elseif InputType == Enum.InputActionType.Direction1D or InputType == Enum.InputActionType.Direction2D or InputType == Enum.InputActionType.Direction3D or InputType == Enum.InputActionType.ViewportPosition then
+				elseif InputType == Enum.InputActionType.Direction1D or InputType == Enum.InputActionType.Direction2D or InputType == Enum.InputActionType.Direction3D then
 					if pressed then
 						if _ActiveMainKey and _ActiveMainKey ~= keyEnum then
 							if self.InputBufferEnabled then
@@ -466,6 +466,20 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
 						_ActiveMainKey = nil
 						tryConsumeBuffer()
 					end
+
+					return
+				
+				elseif InputType == Enum.InputActionType.ViewportPosition then
+					if self.Cooldown > 0 and now < _CooldownUntil then
+						fire(Vector2.zero, false)
+						return
+					end
+
+					if self.Cooldown > 0 then
+						_CooldownUntil = now + self.Cooldown
+					end
+
+					fire(variant, true)
 
 					return
 				end
