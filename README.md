@@ -55,6 +55,8 @@ Future updates will allow the developer to send proper data to client so he can 
 IIAS.new(name: string, InputType: Enum.InputActionType?) -- Create a new keybind, set a InputActionType (default to Bool)
 IIAS.Get(name: string?)                                  -- Retrieve a specific bind
 IIAS.GetAll()                                            -- Get all registered binds
+IIAS.enableControlHints(parent: Instance | PlayerGui?, module: Instance | string?)
+                                                         -- Enable ControlHints - By ZurichBT
 
 -- IMPORTANT: Context here doesn't stand for InputContext
 -- but rather a way to organize your binds.
