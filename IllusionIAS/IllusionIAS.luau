@@ -27,11 +27,12 @@ local function instanceSetup(name, inputType, InputContext: InputContext): (Inpu
 	local InputAction = Instance.new("InputAction")
 	InputAction.Name = name
 	InputAction.Type = inputType
+	InputAction:SetAttribute("CustomName", InputContext.Name)
 	InputAction.Parent = InputContext
 
 	local InputBinding = Instance.new("InputBinding")
 	InputBinding.Parent = InputAction
-	
+
 	return InputAction, InputBinding
 end
 
@@ -41,15 +42,19 @@ local function instanceDeletion(name, InputContext: InputContext)
 end
 
 @native local function valueOfVariantGivesPressed(variant: IAS.variant): boolean
-	if typeof(variant) == "boolean" then
-		return variant
-	elseif typeof(variant) == "number" then
-		return variant ~= 0
-	elseif typeof(variant) == "Vector2" then
-		return variant ~= Vector2.zero
-	else
-		return variant ~= Vector3.zero
-	end
+	return 
+		if typeof(variant) == "boolean" then variant 
+		elseif typeof(variant) == "number" then variant ~= 0 
+		elseif typeof(variant) == "Vector2" then variant ~= Vector2.zero 
+		else variant ~= Vector3.zero
+end
+
+@native local function convertStrToEnumKeycode(name: IAS.supposedKeyCode?): Enum.KeyCode
+	return (if typeof(name) == "string" then Enum.KeyCode:FromName(name) else name) or Enum.KeyCode.Unknown
+end
+
+local function getNameForBinding(key: Enum.KeyCode): string
+	return IAS.InputTypeByKey[key] or "Input"
 end
 
 local IIAS = {} :: IAS.IllusionIAS
@@ -60,27 +65,21 @@ local activeBinds: { [string]: IAS.Object } = {}
 function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
 	if activeBinds[name] then return activeBinds[name] end
 	local InputType = inputType or Enum.InputActionType.Bool
-	
-	local variantBaseValue: IAS.variant
-	
-	if InputType == Enum.InputActionType.Bool then
-		variantBaseValue = false
-	elseif InputType == Enum.InputActionType.Direction1D then
-		variantBaseValue = 0
-	elseif InputType == Enum.InputActionType.Direction3D then
-		variantBaseValue = Vector3.zero
-	else
-		variantBaseValue = Vector2.zero
-	end
-		
+
+	local variantBaseValue: IAS.variant = 
+		if InputType == Enum.InputActionType.Bool then false
+		elseif InputType == Enum.InputActionType.Direction1D then 0	
+		elseif InputType == Enum.InputActionType.Direction2D then Vector2.zero
+		else Vector3.zero
+
 	local InputContext: InputContext? = Instance.new("InputContext")
 	if not InputContext then return {} :: IAS.Object end
-	
+
 	InputContext.Name = name
 	InputContext.Parent = getBindFolder()
 
 	local MainName = "MainAction"
-	
+
 	local self: IAS.Object = {
 		Name = name,
 
@@ -101,7 +100,7 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
 		Enabled = true,
 		Priority = 1000,
 		Sink = false,
-		
+
 		Scale = 1,
 		VectorScale = InputType == Enum.InputActionType.Direction2D and Vector2.one or Vector3.one,
 		ResponseCurve = 1,
@@ -125,7 +124,7 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
 		Ended = IASignal.new(),
 
 		Fire = function() end,
-		
+
 		SetHold = function() end,
 		SetUIButton = function() end,
 		SetTapActivation = function() end,
@@ -140,33 +139,33 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
 
 		SetSink = function() end,
 		GetSink = function(): boolean return false end,
-		
+
 		SetScale = function() end,
 		GetScale = function(): number return 0 end,
-		
+
 		SetVectorScale = function() end,
 		GetVectorScale = function(): Vector2 | Vector3 return Vector2.zero end,
-		
+
 		SetResponseCurve = function() end,
 		GetResponseCurve = function(): number return 0 end,
-		
+
 		SetPressedThreshold = function() end,
 		GetPressedThreshold = function(): number return 0.5 end,
 
 		SetReleasedThreshold = function() end,
 		GetReleasedThreshold = function(): number return 0.2 end,
-		
+
 		SetPointerIndex = function() end,
 		GetPointerIndex = function(): number return 1 end,
 
 		SetClampMagnitudeToOne = function() end,
 		GetClampMagnitudeToOne = function(): boolean return true end,
-		
+
 		GetState = function(): IAS.variant return 0 end,
 
 		SetInputBufferEnabled = function() end,
 		SetInputBufferTime = function() end,
-		
+
 		GetCooldownRemaining = function(): number return 0 end,
 		IsBuffered = function(): boolean return false end,
 		ResetBuffer = function() end,
@@ -194,13 +193,13 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
 	local stateConnections: { [string]: RBXScriptConnection } = {}
 
 	local _PrevBinds = BindUtils.Clone(self.Binds)
-	
+
 	local _ToggleState = false
 	local _CooldownUntil = 0
 	local _LastTapTime = 0
 	local _TapCount = 0
 	local _ActiveBindCount = 0
-	
+
 	local _ActiveMainKey: Enum.KeyCode? = nil
 
 	local _Buffered = false
@@ -223,7 +222,7 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
 			self.Ended:Fire(value)
 		end
 	end
-	
+
 	local function tryConsumeBuffer()
 		if not _Buffered then return false end
 
@@ -288,21 +287,21 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
 			end
 		end
 	end
-	
+
 	local childAddedConn: RBXScriptConnection? = InputContext.ChildAdded:Connect(function(child)
 		if child:IsA("InputAction") then			
 			stateConnections[child.Name] = child.StateChanged:Connect(function(variant: IAS.variant)
 				if not self.Enabled then return end
-				
+
 				local pressed = valueOfVariantGivesPressed(variant)
-				
+
 				local inputBinding = child:FindFirstChildOfClass("InputBinding")
 				if not inputBinding then return end
-				
+
 				local keyEnum = inputBinding.KeyCode
 
 				local now = time()
-				
+
 				if InputType == Enum.InputActionType.Bool then
 					if pressed then
 						if _ActiveMainKey and _ActiveMainKey ~= keyEnum then
@@ -468,7 +467,7 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
 					end
 
 					return
-				
+
 				elseif InputType == Enum.InputActionType.ViewportPosition then
 					if self.Cooldown > 0 and now < _CooldownUntil then
 						fire(Vector2.zero, false)
@@ -480,7 +479,7 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
 					end
 
 					fire(variant, true)
-
+					
 					return
 				end
 			end)
@@ -493,12 +492,12 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
 			stateConnections[child.Name] = nil
 		end
 	end)
-	
+
 	local _, InputBinding = instanceSetup(MainName, InputType, InputContext)
-	
+
 	local rebuilding = false
 	local destroyed = false
-	
+
 	local function rebuild()
 		if rebuilding or destroyed then return end
 		rebuilding = true
@@ -511,6 +510,7 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
 				if diff.ChangeType == "Added" then
 					local _, binding = instanceSetup(diff.BindName, InputType, InputContext)
 					binding.KeyCode = diff.NewKeyCode or Enum.KeyCode.Unknown
+					binding.Name = getNameForBinding(binding.KeyCode).."Binding"
 					binding.PrimaryModifier = diff.NewModifiers.PrimaryModifier
 					binding.SecondaryModifier = diff.NewModifiers.SecondaryModifier
 
@@ -518,9 +518,11 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
 					local action = InputContext:FindFirstChild(diff.BindName)
 					if action then
 						local binding = action:FindFirstChildOfClass("InputBinding")
+
 						if binding then
 							if diff.NewKeyCode then
 								binding.KeyCode = diff.NewKeyCode
+								binding.Name = getNameForBinding(binding.KeyCode).."Binding"
 							end
 
 							binding.PrimaryModifier = diff.NewModifiers.PrimaryModifier
@@ -541,11 +543,11 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
 	end
 
 	rebuild()
-	
+
 	function self:Fire(active, pressed)
 		fire(active, pressed)
 	end
-		
+
 	function self:SetHold(bool: boolean)
 		self.Hold = bool
 	end
@@ -560,11 +562,11 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
 	function self:SetCooldown(cooldown: number)
 		self.Cooldown = math.max(0, cooldown)
 	end
-	
+
 	function self:ResetCooldown()
 		_CooldownUntil = 0
 	end
-	
+
 	function self:SetTapActivation(requiredTaps: number, tapWindow: number)
 		requiredTaps = math.max(1, requiredTaps)
 		tapWindow = math.max(0, tapWindow)
@@ -608,16 +610,16 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
 	function self:GetSink()
 		return self.Sink
 	end
-	
+
 	function self:SetScale(scale: number)
 		self.Scale = scale
 		InputBinding.Scale = self.Scale
 	end
-	
+
 	function self:GetScale(): number
 		return self.Scale
 	end
-	
+
 	function self:SetVectorScale(vector: Vector2 | Vector3)
 		self.VectorScale = vector
 		if InputType == Enum.InputActionType.Direction2D then
@@ -630,43 +632,43 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
 	function self:GetVectorScale(): Vector2 | Vector3
 		return self.VectorScale
 	end
-	
+
 	function self:SetInputBufferEnabled(enabled: boolean)
 		self.InputBufferEnabled = enabled
 	end
-	
+
 	function self:SetResponseCurve(curve: number)
 		self.ResponseCurve = curve
 		InputBinding.ResponseCurve = self.ResponseCurve
 	end
-	
+
 	function self:GetResponseCurve(): number
 		return self.ResponseCurve
 	end
-	
+
 	function self:SetPressedThreshold(threshold: number)
 		self.PressedThreshold = threshold
 		InputBinding.PressedThreshold = self.PressedThreshold
 	end
-	
+
 	function self:GetPressedThreshold()
 		return self.PressedThreshold
 	end
-	
+
 	function self:SetReleasedThreshold(threshold: number)
 		self.ReleasedThreshold = threshold
 		InputBinding.ReleasedThreshold = self.ReleasedThreshold
 	end
-	
+
 	function self:GetReleasedThreshold()
 		return self.ReleasedThreshold
 	end
-	
+
 	function self:SetPointerIndex(index)
 		self.PointerIndex = index
 		InputBinding.PointerIndex = self.PointerIndex
 	end
-	
+
 	function self:GetPointerIndex()
 		return self.PointerIndex
 	end
@@ -675,7 +677,7 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
 		self.ClampMagnitudeToOne = bool
 		InputBinding.ClampMagnitudeToOne = self.ClampMagnitudeToOne
 	end
-	
+
 	function self:GetClampMagnitudeToOne()
 		return self.ClampMagnitudeToOne
 	end
@@ -684,7 +686,7 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
 		t = math.max(0, t)
 		self.InputBufferTime = t
 	end
-	
+
 	function self:GetState(): IAS.variant
 		return self.Active
 	end
@@ -729,12 +731,16 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
 		BindUtils.ResetBinds(self.Binds)
 		rebuild()
 	end
-	
+
 	function self:GetBinds(): IAS.Binds
 		return BindUtils.Clone(self.Binds)
 	end
-	
-	function self:AddBind(mainKey: Enum.KeyCode, PrimaryModifier: Enum.KeyCode?, SecondaryModifier: Enum.KeyCode?)
+
+	function self:AddBind(mainKey: IAS.supposedKeyCode, PrimaryModifier: IAS.supposedKeyCode?, SecondaryModifier: IAS.supposedKeyCode?)
+		mainKey = convertStrToEnumKeycode(mainKey)
+		PrimaryModifier = convertStrToEnumKeycode(PrimaryModifier)
+		SecondaryModifier = convertStrToEnumKeycode(SecondaryModifier)
+		
 		if mainKey == Enum.KeyCode.Unknown then return end
 
 		for bindName, bind in self.Binds do
@@ -766,13 +772,17 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
 		rebuild()
 		return
 	end
-	
-	function self:SetBind(mainKey: Enum.KeyCode, PrimaryModifier: Enum.KeyCode?, SecondaryModifier: Enum.KeyCode?)
+
+	function self:SetBind(mainKey: IAS.supposedKeyCode, PrimaryModifier: IAS.supposedKeyCode?, SecondaryModifier: IAS.supposedKeyCode?)
 		self:ClearBinds()
 		self:AddBind(mainKey, PrimaryModifier, SecondaryModifier)
 	end
-	
-	function self:RemoveBind(mainKey: Enum.KeyCode, PrimaryModifier: Enum.KeyCode?, SecondaryModifier: Enum.KeyCode?)
+
+	function self:RemoveBind(mainKey: IAS.supposedKeyCode, PrimaryModifier: IAS.supposedKeyCode?, SecondaryModifier: IAS.supposedKeyCode?)
+		mainKey = convertStrToEnumKeycode(mainKey)
+		PrimaryModifier = convertStrToEnumKeycode(PrimaryModifier)
+		SecondaryModifier = convertStrToEnumKeycode(SecondaryModifier)
+		
 		if not mainKey then return end
 
 		for bindName, bind in self.Binds do
@@ -798,13 +808,17 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
 			return
 		end
 	end
-	
+
 	function self:EditBind(
-		oldMain: Enum.KeyCode,
+		oldMain: IAS.supposedKeyCode,
 		oldMods: {PrimaryModifier: Enum.KeyCode?, SecondaryModifier: Enum.KeyCode? },
-		newMain: Enum.KeyCode,
+		newMain: IAS.supposedKeyCode,
 		newMods: {PrimaryModifier: Enum.KeyCode?, SecondaryModifier: Enum.KeyCode? }
 	)
+		
+		oldMain = convertStrToEnumKeycode(oldMain)
+		newMain = convertStrToEnumKeycode(oldMain)
+		
 		if not oldMain or not newMain then return end
 
 		for bindName, bind in self.Binds do
@@ -825,33 +839,33 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
 		end
 	end
 
-	function self:SetCompositeDirections(Up, Down, Left, Right, Forward, Backward)
+	function self:SetCompositeDirections(Up: IAS.supposedKeyCode?, Down: IAS.supposedKeyCode?, Left: IAS.supposedKeyCode?, Right: IAS.supposedKeyCode?, Forward: IAS.supposedKeyCode?, Backward: IAS.supposedKeyCode?)
 		if InputType == Enum.InputActionType.Bool or InputType == Enum.InputActionType.ViewportPosition then return end
-		InputBinding.Up = Up or Enum.KeyCode.Unknown
-		InputBinding.Down = Down or Enum.KeyCode.Unknown
-		InputBinding.Left = Left or Enum.KeyCode.Unknown
-		InputBinding.Right = Right or Enum.KeyCode.Unknown
-		InputBinding.Forward = Forward or Enum.KeyCode.Unknown
-		InputBinding.Backward = Backward or Enum.KeyCode.Unknown
+		InputBinding.Up = convertStrToEnumKeycode(Up)
+		InputBinding.Down = convertStrToEnumKeycode(Down)
+		InputBinding.Left = convertStrToEnumKeycode(Left)
+		InputBinding.Right = convertStrToEnumKeycode(Right)
+		InputBinding.Forward = convertStrToEnumKeycode(Forward)
+		InputBinding.Backward = convertStrToEnumKeycode(Backward)
 	end
-	
-	function self:SetCompositeModifiers(PrimaryModifier: Enum.KeyCode?, SecondaryModifier: Enum.KeyCode?)
+
+	function self:SetCompositeModifiers(PrimaryModifier: IAS.supposedKeyCode?, SecondaryModifier: IAS.supposedKeyCode?)
 		if InputType == Enum.InputActionType.Bool or InputType == Enum.InputActionType.ViewportPosition then return end
-		InputBinding.PrimaryModifier = PrimaryModifier or Enum.KeyCode.Unknown
-		InputBinding.SecondaryModifier = SecondaryModifier or Enum.KeyCode.Unknown
+		InputBinding.PrimaryModifier = convertStrToEnumKeycode(PrimaryModifier)
+		InputBinding.SecondaryModifier = convertStrToEnumKeycode(SecondaryModifier)
 	end
-	
+
 	function self:Destroy()	
 		if destroyed then return false end
 		destroyed = true
-		
+
 		for conn in stateConnections do
 			stateConnections[conn]:Disconnect()
 			stateConnections[conn] = nil
 		end
-		
+
 		table.clear(stateConnections)
-		
+
 		if childAddedConn then
 			childAddedConn:Disconnect()
 			childAddedConn = nil
@@ -861,11 +875,11 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
 			childRemovedConn:Disconnect()
 			childRemovedConn = nil
 		end
-		
+
 		for _, context in IIAS.contextedBinds do
 			context.Members[self.Name] = nil
 		end
-		
+
 		if InputContext then
 			for _, child in InputContext:GetChildren() do
 				child:Destroy()
@@ -874,18 +888,23 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
 			InputContext:Destroy()
 			InputContext = nil
 		end
-		
+
 		self.Activated:DisconnectAll()
 		self.Started:DisconnectAll()
 		self.Ended:DisconnectAll()
 
 		activeBinds[name] = nil
-		
+
 		return true
 	end
 
 	activeBinds[name] = self
 	return self
+end
+
+function IIAS.enableControlHints(parent: Instance | PlayerGui?, module: Instance | string?): ScreenGui
+	-- Credits: ZurichBT - ControlHints https://devforum.roblox.com/t/control-hints-show-your-ias-bindings-pc-xbox-playstation-mobile/3978604/
+	return (module and (require)(module) or require("./ControlHints")).CreateUI(getBindFolder(), parent)
 end
 
 function IIAS.get(name: string): IAS.Object?
