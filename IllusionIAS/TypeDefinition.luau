@@ -161,7 +161,7 @@ export type Contexts = { [string]: Context }
 
 export type IllusionIAS = {
 	contextedBinds: Contexts,
-	enableControlHints: (PlayerGui: PlayerGui, module: Instance | string?) -> ScreenGui,
+	enableControlHints: (parent: Instance | PlayerGui?, module: Instance | string?) -> ScreenGui,
 	new: (name: string, inputType: Enum.InputActionType?) -> Object,
 	get: (name: string) -> Object?,
 	getAll: () -> {[string]: Object},
