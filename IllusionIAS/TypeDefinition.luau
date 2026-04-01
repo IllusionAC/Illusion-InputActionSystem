@@ -31,9 +31,9 @@ export type Node = {
 export type supposedKeyCode = Enum.KeyCode | string
 
 export type Bind = {
-	KeyCode: supposedKeyCode,
-	PrimaryModifier: supposedKeyCode,
-	SecondaryModifier: supposedKeyCode
+	KeyCode: Enum.KeyCode,
+	PrimaryModifier: Enum.KeyCode,
+	SecondaryModifier: Enum.KeyCode
 }
 
 export type Binds = {
