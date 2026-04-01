@@ -146,7 +146,7 @@ export type Object = {
 	AddBind: (self: Object, mainKey: supposedKeyCode, PrimaryModifier: supposedKeyCode?, SecondaryModifier: supposedKeyCode?) -> (),
 	SetBind: (self: Object, mainKey: supposedKeyCode, PrimaryModifier: supposedKeyCode?, SecondaryModifier: supposedKeyCode?) -> (),
 	RemoveBind: (self: Object, mainKey: supposedKeyCode, PrimaryModifier: supposedKeyCode?, SecondaryModifier: supposedKeyCode?) -> (),
-	EditBind: (self: Object, oldMain: supposedKeyCode, oldMods: {PrimaryModifier: Enum.KeyCode?, SecondaryModifier: Enum.KeyCode? }, newMain: supposedKeyCode, newMods: {	PrimaryModifier:  Enum.KeyCode?, SecondaryModifier:  Enum.KeyCode? }) -> (),
+	EditBind: (self: Object, oldMain: supposedKeyCode, oldMods: {PrimaryModifier: supposedKeyCode?, SecondaryModifier: supposedKeyCode? }, newMain: supposedKeyCode, newMods: {	PrimaryModifier: supposedKeyCode?, SecondaryModifier: supposedKeyCode? }) -> (),
 	ClearBinds: (self: Object) -> (),
 
 	SetCompositeDirections: (self: Object, up: supposedKeyCode?, down: supposedKeyCode?, left: supposedKeyCode?, right: supposedKeyCode?, forward: supposedKeyCode?, backward: supposedKeyCode?) -> (),

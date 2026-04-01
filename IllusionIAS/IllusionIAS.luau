@@ -783,7 +783,7 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
 		PrimaryModifier = convertStrToEnumKeycode(PrimaryModifier)
 		SecondaryModifier = convertStrToEnumKeycode(SecondaryModifier)
 		
-		if not mainKey then return end
+		if mainKey == Enum.KeyCode.Unknown then return end
 
 		for bindName, bind in self.Binds do
 			if bind.KeyCode ~= mainKey then
@@ -811,15 +811,15 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
 
 	function self:EditBind(
 		oldMain: IAS.supposedKeyCode,
-		oldMods: {PrimaryModifier: Enum.KeyCode?, SecondaryModifier: Enum.KeyCode? },
+		oldMods: {PrimaryModifier: IAS.supposedKeyCode?, SecondaryModifier: IAS.supposedKeyCode? },
 		newMain: IAS.supposedKeyCode,
-		newMods: {PrimaryModifier: Enum.KeyCode?, SecondaryModifier: Enum.KeyCode? }
+		newMods: {PrimaryModifier: IAS.supposedKeyCode?, SecondaryModifier: IAS.supposedKeyCode? }
 	)
 		
 		oldMain = convertStrToEnumKeycode(oldMain)
-		newMain = convertStrToEnumKeycode(oldMain)
+		newMain = convertStrToEnumKeycode(newMain)
 		
-		if not oldMain or not newMain then return end
+		if oldMain == Enum.KeyCode.Unknown or newMain == Enum.KeyCode.Unknown then return end
 
 		for bindName, bind in self.Binds do
 			if bind.KeyCode ~= oldMain then continue end
@@ -904,7 +904,7 @@ end
 
 function IIAS.enableControlHints(parent: Instance | PlayerGui?, module: Instance | string?): ScreenGui
 	-- Credits: ZurichBT - ControlHints https://devforum.roblox.com/t/control-hints-show-your-ias-bindings-pc-xbox-playstation-mobile/3978604/
-	return (module and (require)(module) or require("./ControlHints")).CreateUI(getBindFolder(), parent)
+	return (module and (require)(module) or require(script.Parent:WaitForChild("ControlHints"))).CreateUI(getBindFolder(), parent)
 end
 
 function IIAS.get(name: string): IAS.Object?

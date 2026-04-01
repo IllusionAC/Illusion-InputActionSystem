@@ -16,22 +16,21 @@ local REMOVED: IAS.Bind = {
 	SecondaryModifier = Enum.KeyCode.Unknown
 }
 
-@native local function isKeyCode(value: any): boolean
-	return typeof(value) == "EnumItem" and value.EnumType == Enum.KeyCode
+@native local function convertStrToEnumKeycode(name: IAS.supposedKeyCode?): Enum.KeyCode
+	return (if typeof(name) == "string" then Enum.KeyCode:FromName(name) else name) or Enum.KeyCode.Unknown
 end
 
 local function getBind(binds: IAS.Binds, name: string): IAS.Bind?
 	return binds[name]
 end
 
-function BindUtils.AddBind(binds: IAS.Binds, name: string, keyCode: Enum.KeyCode?, PrimaryModifier: Enum.KeyCode?, SecondaryModifier: Enum.KeyCode?): boolean
-
+function BindUtils.AddBind(binds: IAS.Binds, name: string, keyCode: IAS.supposedKeyCode?, PrimaryModifier: IAS.supposedKeyCode?, SecondaryModifier: IAS.supposedKeyCode?): boolean
 	if binds[name] ~= nil then return false end
 
 	binds[name] = {
-		KeyCode = if isKeyCode(keyCode) and keyCode then keyCode else Enum.KeyCode.Unknown,
-		PrimaryModifier = if isKeyCode(PrimaryModifier) and PrimaryModifier then PrimaryModifier else Enum.KeyCode.Unknown,
-		SecondaryModifier = if isKeyCode(SecondaryModifier) and SecondaryModifier then SecondaryModifier else Enum.KeyCode.Unknown
+		KeyCode = convertStrToEnumKeycode(keyCode),
+		PrimaryModifier = convertStrToEnumKeycode(PrimaryModifier),
+		SecondaryModifier = convertStrToEnumKeycode(SecondaryModifier)
 	}
 
 	return true
@@ -43,18 +42,18 @@ function BindUtils.RemoveBind(binds: IAS.Binds, name: string): boolean
 	return true
 end
 
-local function setKeyCode(binds: IAS.Binds, name: string, keyCode: Enum.KeyCode): boolean
+local function setKeyCode(binds: IAS.Binds, name: string, keyCode: IAS.supposedKeyCode): boolean
 	local bind = getBind(binds, name)
 	if not bind then return false end
-	bind.KeyCode = keyCode
+	bind.KeyCode = convertStrToEnumKeycode(keyCode)
 	return true
 end
 
-local function setModifiers(binds: IAS.Binds, name: string, PrimaryModifier: Enum.KeyCode?, SecondaryModifier: Enum.KeyCode?): boolean
+local function setModifiers(binds: IAS.Binds, name: string, PrimaryModifier: IAS.supposedKeyCode?, SecondaryModifier: IAS.supposedKeyCode?): boolean
 	local bind = getBind(binds, name)
 	if not bind then return false end
-	bind.PrimaryModifier = PrimaryModifier or Enum.KeyCode.Unknown
-	bind.SecondaryModifier = SecondaryModifier or Enum.KeyCode.Unknown
+	bind.PrimaryModifier = convertStrToEnumKeycode(PrimaryModifier)
+	bind.SecondaryModifier = convertStrToEnumKeycode(SecondaryModifier)
 	return true
 end
 
