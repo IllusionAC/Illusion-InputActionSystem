@@ -57,6 +57,16 @@ local function getNameForBinding(key: Enum.KeyCode): string
 	return IAS.InputTypeByKey[key] or "Input"
 end
 
+local function getBindNameFromKeyCode(mainKey: Enum.KeyCode, binds: IAS.Binds): string?
+	for bindName, bind in binds do
+		if bind.KeyCode == mainKey then
+			return bindName
+		end
+	end
+
+	return nil
+end
+
 local IIAS = {} :: IAS.IllusionIAS
 IIAS.contextedBinds = {}
 
@@ -183,6 +193,8 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
 		SetBind = function() end,
 		RemoveBind = function() end,
 		EditBind = function() end,
+		SetDisplayName = function(): boolean return false end,
+		GetDisplayName = function(): string? return nil end,
 
 		SetCompositeDirections = function() end,
 		SetCompositeModifiers = function() end,
@@ -839,6 +851,42 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
 		end
 	end
 
+	function self:SetDisplayName(mainKey: IAS.supposedKeyCode, displayName: string)
+		local keyCode = convertStrToEnumKeycode(mainKey)
+		if keyCode == Enum.KeyCode.Unknown then return false end
+
+		local bindName = getBindNameFromKeyCode(keyCode, self.Binds)
+		if not bindName then return false end
+
+		local action = InputContext and InputContext:FindFirstChild(bindName)
+		if not action or not action:IsA("InputAction") then return false end
+
+		action:SetAttribute("CustomName", displayName)
+		return true
+	end
+
+	function self:GetDisplayName(mainKey: IAS.supposedKeyCode)
+		local keyCode = convertStrToEnumKeycode(mainKey)
+		if keyCode == Enum.KeyCode.Unknown then return nil end
+
+		local bindName = getBindNameFromKeyCode(keyCode, self.Binds)
+		if not bindName then return nil end
+
+		local action = InputContext and InputContext:FindFirstChild(bindName)
+		if not action or not action:IsA("InputAction") then return nil end
+
+		local displayName = action:GetAttribute("CustomName")
+		if typeof(displayName) == "string" then
+			return displayName
+		end
+
+		if InputContext then
+			return InputContext.Name
+		end
+
+		return nil
+	end
+
 	function self:SetCompositeDirections(Up: IAS.supposedKeyCode?, Down: IAS.supposedKeyCode?, Left: IAS.supposedKeyCode?, Right: IAS.supposedKeyCode?, Forward: IAS.supposedKeyCode?, Backward: IAS.supposedKeyCode?)
 		if InputType == Enum.InputActionType.Bool or InputType == Enum.InputActionType.ViewportPosition then return end
 		InputBinding.Up = convertStrToEnumKeycode(Up)
@@ -904,7 +952,7 @@ end
 
 function IIAS.enableControlHints(parent: Instance | PlayerGui?, module: Instance | string?): ScreenGui
 	-- Credits: ZurichBT - ControlHints https://devforum.roblox.com/t/control-hints-show-your-ias-bindings-pc-xbox-playstation-mobile/3978604/
-	return (module and (require)(module) or require(script.Parent:WaitForChild("ControlHints"))).CreateUI(getBindFolder(), parent)
+	return (module and (require)(module) or require("./ControlHints")).CreateUI(getBindFolder(), parent)
 end
 
 function IIAS.get(name: string): IAS.Object?

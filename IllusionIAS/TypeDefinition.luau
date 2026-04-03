@@ -147,6 +147,8 @@ export type Object = {
 	SetBind: (self: Object, mainKey: supposedKeyCode, PrimaryModifier: supposedKeyCode?, SecondaryModifier: supposedKeyCode?) -> (),
 	RemoveBind: (self: Object, mainKey: supposedKeyCode, PrimaryModifier: supposedKeyCode?, SecondaryModifier: supposedKeyCode?) -> (),
 	EditBind: (self: Object, oldMain: supposedKeyCode, oldMods: {PrimaryModifier: supposedKeyCode?, SecondaryModifier: supposedKeyCode? }, newMain: supposedKeyCode, newMods: {	PrimaryModifier: supposedKeyCode?, SecondaryModifier: supposedKeyCode? }) -> (),
+	SetDisplayName: (self: Object, mainKey: supposedKeyCode, displayName: string) -> (boolean),
+	GetDisplayName: (self: Object, mainKey: supposedKeyCode) -> (string?),
 	ClearBinds: (self: Object) -> (),
 
 	SetCompositeDirections: (self: Object, up: supposedKeyCode?, down: supposedKeyCode?, left: supposedKeyCode?, right: supposedKeyCode?, forward: supposedKeyCode?, backward: supposedKeyCode?) -> (),
