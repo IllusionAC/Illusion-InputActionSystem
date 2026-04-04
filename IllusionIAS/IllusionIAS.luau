@@ -13,6 +13,17 @@ local IAS = require("@self/TypeDefinition")
 local IASignal = require("@self/IllusionSignal")
 local BindUtils = require("@self/BindUtils")
 
+export type IAScriptConnection = IAS.IAScriptConnection
+export type IAScriptSignal = IAS.IAScriptSignal
+export type variant = IAS.variant
+export type Bind = IAS.Bind
+export type Binds = IAS.Binds
+export type BindingObject = IAS.BindingObject
+export type Context = IAS.Context
+export type Contexts = IAS.Contexts
+export type IllusionIAS = IAS.IllusionIAS
+export type supposedKeyCode = IAS.supposedKeyCode
+
 local function getBindFolder()
 	local existing = script:FindFirstChildOfClass("Folder")
 	if existing then return existing end
@@ -41,7 +52,7 @@ local function instanceDeletion(name, InputContext: InputContext)
 	if inputAction then inputAction:Destroy() end
 end
 
-@native local function valueOfVariantGivesPressed(variant: IAS.variant): boolean
+@native local function valueOfVariantGivesPressed(variant: variant): boolean
 	return 
 		if typeof(variant) == "boolean" then variant 
 		elseif typeof(variant) == "number" then variant ~= 0 
@@ -49,7 +60,7 @@ end
 		else variant ~= Vector3.zero
 end
 
-@native local function convertStrToEnumKeycode(name: IAS.supposedKeyCode?): Enum.KeyCode
+@native local function convertStrToEnumKeycode(name: supposedKeyCode?): Enum.KeyCode
 	return (if typeof(name) == "string" then Enum.KeyCode:FromName(name) else name) or Enum.KeyCode.Unknown
 end
 
@@ -57,7 +68,7 @@ local function getNameForBinding(key: Enum.KeyCode): string
 	return IAS.InputTypeByKey[key] or "Input"
 end
 
-local function getBindNameFromKeyCode(mainKey: Enum.KeyCode, binds: IAS.Binds): string?
+local function getBindNameFromKeyCode(mainKey: Enum.KeyCode, binds: Binds): string?
 	for bindName, bind in binds do
 		if bind.KeyCode == mainKey then
 			return bindName
@@ -67,30 +78,30 @@ local function getBindNameFromKeyCode(mainKey: Enum.KeyCode, binds: IAS.Binds): 
 	return nil
 end
 
-local IIAS = {} :: IAS.IllusionIAS
+local IIAS = {} :: IllusionIAS
 IIAS.contextedBinds = {}
 
-local activeBinds: { [string]: IAS.Object } = {}
+local activeBinds: { [string]: BindingObject } = {}
 
-function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
+function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 	if activeBinds[name] then return activeBinds[name] end
 	local InputType = inputType or Enum.InputActionType.Bool
 
-	local variantBaseValue: IAS.variant = 
+	local variantBaseValue: variant = 
 		if InputType == Enum.InputActionType.Bool then false
 		elseif InputType == Enum.InputActionType.Direction1D then 0	
 		elseif InputType == Enum.InputActionType.Direction2D then Vector2.zero
 		else Vector3.zero
 
 	local InputContext: InputContext? = Instance.new("InputContext")
-	if not InputContext then return {} :: IAS.Object end
+	if not InputContext then return {} :: BindingObject end
 
 	InputContext.Name = name
 	InputContext.Parent = getBindFolder()
 
 	local MainName = "MainAction"
 
-	local self: IAS.Object = {
+	local self: BindingObject = {
 		Name = name,
 
 		Hold = true,
@@ -171,7 +182,7 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
 		SetClampMagnitudeToOne = function() end,
 		GetClampMagnitudeToOne = function(): boolean return true end,
 
-		GetState = function(): IAS.variant return 0 end,
+		GetState = function(): variant return 0 end,
 
 		SetInputBufferEnabled = function() end,
 		SetInputBufferTime = function() end,
@@ -180,7 +191,7 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
 		IsBuffered = function(): boolean return false end,
 		ResetBuffer = function() end,
 
-		GetBufferedVariant = function(): IAS.variant? return 0 end,
+		GetBufferedVariant = function(): variant? return 0 end,
 		GetBufferedKey = function(): Enum.KeyCode? return Enum.KeyCode.Unknown end,
 
 		GetActiveBindCount = function(): number return 0 end,
@@ -188,7 +199,7 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
 		GetToggleState = function(): boolean return false end,
 
 		ClearBinds = function() end,
-		GetBinds = function(): IAS.Binds return {} end,
+		GetBinds = function(): Binds return {} end,
 		AddBind = function() end,
 		SetBind = function() end,
 		RemoveBind = function() end,
@@ -217,12 +228,12 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
 	local _Buffered = false
 	local _BufferedTime = 0
 	local _BufferedKey: Enum.KeyCode? = nil
-	local _BufferedVariant: IAS.variant? = nil
+	local _BufferedVariant: variant? = nil
 
 	local activeKeysCounted: { [Enum.KeyCode]: boolean } = {}
 	local blockedPresses: { [Enum.KeyCode]: boolean } = {}
 
-	local function fire(value: IAS.variant, pressed: boolean)
+	local function fire(value: variant, pressed: boolean)
 		if not self.Enabled then return end
 
 		self.Active = value
@@ -302,7 +313,7 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
 
 	local childAddedConn: RBXScriptConnection? = InputContext.ChildAdded:Connect(function(child)
 		if child:IsA("InputAction") then			
-			stateConnections[child.Name] = child.StateChanged:Connect(function(variant: IAS.variant)
+			stateConnections[child.Name] = child.StateChanged:Connect(function(variant: variant)
 				if not self.Enabled then return end
 
 				local pressed = valueOfVariantGivesPressed(variant)
@@ -491,7 +502,7 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
 					end
 
 					fire(variant, true)
-					
+
 					return
 				end
 			end)
@@ -699,7 +710,7 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
 		self.InputBufferTime = t
 	end
 
-	function self:GetState(): IAS.variant
+	function self:GetState(): variant
 		return self.Active
 	end
 
@@ -744,15 +755,15 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
 		rebuild()
 	end
 
-	function self:GetBinds(): IAS.Binds
+	function self:GetBinds(): Binds
 		return BindUtils.Clone(self.Binds)
 	end
 
-	function self:AddBind(mainKey: IAS.supposedKeyCode, PrimaryModifier: IAS.supposedKeyCode?, SecondaryModifier: IAS.supposedKeyCode?)
+	function self:AddBind(mainKey: supposedKeyCode, PrimaryModifier: supposedKeyCode?, SecondaryModifier: supposedKeyCode?)
 		mainKey = convertStrToEnumKeycode(mainKey)
 		PrimaryModifier = convertStrToEnumKeycode(PrimaryModifier)
 		SecondaryModifier = convertStrToEnumKeycode(SecondaryModifier)
-		
+
 		if mainKey == Enum.KeyCode.Unknown then return end
 
 		for bindName, bind in self.Binds do
@@ -785,26 +796,26 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
 		return
 	end
 
-	function self:SetBind(mainKey: IAS.supposedKeyCode, PrimaryModifier: IAS.supposedKeyCode?, SecondaryModifier: IAS.supposedKeyCode?)
+	function self:SetBind(mainKey: supposedKeyCode, PrimaryModifier: supposedKeyCode?, SecondaryModifier: supposedKeyCode?)
 		self:ClearBinds()
 		self:AddBind(mainKey, PrimaryModifier, SecondaryModifier)
 	end
 
-	function self:RemoveBind(mainKey: IAS.supposedKeyCode, PrimaryModifier: IAS.supposedKeyCode?, SecondaryModifier: IAS.supposedKeyCode?)
-		mainKey = convertStrToEnumKeycode(mainKey)
-		PrimaryModifier = convertStrToEnumKeycode(PrimaryModifier)
-		SecondaryModifier = convertStrToEnumKeycode(SecondaryModifier)
-		
-		if mainKey == Enum.KeyCode.Unknown then return end
+	function self:RemoveBind(mainKey: supposedKeyCode, PrimaryModifier: supposedKeyCode?, SecondaryModifier: supposedKeyCode?)
+		local keyCode: Enum.KeyCode = convertStrToEnumKeycode(mainKey)
+		local primary: Enum.KeyCode = convertStrToEnumKeycode(PrimaryModifier)
+		local secondary: Enum.KeyCode = convertStrToEnumKeycode(SecondaryModifier)
+
+		if keyCode == Enum.KeyCode.Unknown then return end
 
 		for bindName, bind in self.Binds do
-			if bind.KeyCode ~= mainKey then
+			if bind.KeyCode ~= keyCode then
 				continue
 			end
 
 			local equal = BindUtils.CheckDifferences(
-				{ X = { KeyCode = mainKey, PrimaryModifier = bind.PrimaryModifier, SecondaryModifier = bind.SecondaryModifier } },
-				{ X = { KeyCode = mainKey, PrimaryModifier = PrimaryModifier or Enum.KeyCode.Unknown, SecondaryModifier = SecondaryModifier or Enum.KeyCode.Unknown } }
+				{ X = { KeyCode = keyCode, PrimaryModifier = bind.PrimaryModifier, SecondaryModifier = bind.SecondaryModifier } },
+				{ X = { KeyCode = keyCode, PrimaryModifier = primary, SecondaryModifier = secondary } }
 			)
 
 			if not equal then continue end
@@ -822,28 +833,30 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
 	end
 
 	function self:EditBind(
-		oldMain: IAS.supposedKeyCode,
-		oldMods: {PrimaryModifier: IAS.supposedKeyCode?, SecondaryModifier: IAS.supposedKeyCode? },
-		newMain: IAS.supposedKeyCode,
-		newMods: {PrimaryModifier: IAS.supposedKeyCode?, SecondaryModifier: IAS.supposedKeyCode? }
+		oldMain: supposedKeyCode,
+		oldMods: {PrimaryModifier: supposedKeyCode?, SecondaryModifier: supposedKeyCode? },
+		newMain: supposedKeyCode,
+		newMods: {PrimaryModifier: supposedKeyCode?, SecondaryModifier: supposedKeyCode? }
 	)
-		
-		oldMain = convertStrToEnumKeycode(oldMain)
-		newMain = convertStrToEnumKeycode(newMain)
-		
-		if oldMain == Enum.KeyCode.Unknown or newMain == Enum.KeyCode.Unknown then return end
+
+		local oldKeyCode: Enum.KeyCode = convertStrToEnumKeycode(oldMain)
+		local newKeyCode: Enum.KeyCode = convertStrToEnumKeycode(newMain)
+		local oldPrimary: Enum.KeyCode = convertStrToEnumKeycode(oldMods.PrimaryModifier)
+		local oldSecondary: Enum.KeyCode = convertStrToEnumKeycode(oldMods.SecondaryModifier)
+
+		if oldKeyCode == Enum.KeyCode.Unknown or newKeyCode == Enum.KeyCode.Unknown then return end
 
 		for bindName, bind in self.Binds do
-			if bind.KeyCode ~= oldMain then continue end
+			if bind.KeyCode ~= oldKeyCode then continue end
 
 			local equal = BindUtils.CheckDifferences(
-				{ X = { KeyCode = oldMain, PrimaryModifier = bind.PrimaryModifier, SecondaryModifier = bind.SecondaryModifier } },
-				{ X = { KeyCode = oldMain, PrimaryModifier = oldMods.PrimaryModifier or Enum.KeyCode.Unknown, SecondaryModifier = oldMods.SecondaryModifier or Enum.KeyCode.Unknown } }
+				{ X = { KeyCode = oldKeyCode, PrimaryModifier = bind.PrimaryModifier, SecondaryModifier = bind.SecondaryModifier } },
+				{ X = { KeyCode = oldKeyCode, PrimaryModifier = oldPrimary, SecondaryModifier = oldSecondary } }
 			)
 
 			if not equal then continue end
 
-			BindUtils.SetKeyCode(self.Binds, bindName, newMain)
+			BindUtils.SetKeyCode(self.Binds, bindName, newKeyCode)
 			BindUtils.SetModifiers(self.Binds, bindName, newMods.PrimaryModifier, newMods.SecondaryModifier)
 
 			rebuild()
@@ -851,7 +864,7 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
 		end
 	end
 
-	function self:SetDisplayName(mainKey: IAS.supposedKeyCode, displayName: string)
+	function self:SetDisplayName(mainKey: supposedKeyCode, displayName: string)
 		local keyCode = convertStrToEnumKeycode(mainKey)
 		if keyCode == Enum.KeyCode.Unknown then return false end
 
@@ -865,7 +878,7 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
 		return true
 	end
 
-	function self:GetDisplayName(mainKey: IAS.supposedKeyCode)
+	function self:GetDisplayName(mainKey: supposedKeyCode)
 		local keyCode = convertStrToEnumKeycode(mainKey)
 		if keyCode == Enum.KeyCode.Unknown then return nil end
 
@@ -887,7 +900,7 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
 		return nil
 	end
 
-	function self:SetCompositeDirections(Up: IAS.supposedKeyCode?, Down: IAS.supposedKeyCode?, Left: IAS.supposedKeyCode?, Right: IAS.supposedKeyCode?, Forward: IAS.supposedKeyCode?, Backward: IAS.supposedKeyCode?)
+	function self:SetCompositeDirections(Up: supposedKeyCode?, Down: supposedKeyCode?, Left: supposedKeyCode?, Right: supposedKeyCode?, Forward: supposedKeyCode?, Backward: supposedKeyCode?)
 		if InputType == Enum.InputActionType.Bool or InputType == Enum.InputActionType.ViewportPosition then return end
 		InputBinding.Up = convertStrToEnumKeycode(Up)
 		InputBinding.Down = convertStrToEnumKeycode(Down)
@@ -897,7 +910,7 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): IAS.Object
 		InputBinding.Backward = convertStrToEnumKeycode(Backward)
 	end
 
-	function self:SetCompositeModifiers(PrimaryModifier: IAS.supposedKeyCode?, SecondaryModifier: IAS.supposedKeyCode?)
+	function self:SetCompositeModifiers(PrimaryModifier: supposedKeyCode?, SecondaryModifier: supposedKeyCode?)
 		if InputType == Enum.InputActionType.Bool or InputType == Enum.InputActionType.ViewportPosition then return end
 		InputBinding.PrimaryModifier = convertStrToEnumKeycode(PrimaryModifier)
 		InputBinding.SecondaryModifier = convertStrToEnumKeycode(SecondaryModifier)
@@ -955,11 +968,11 @@ function IIAS.enableControlHints(parent: Instance | PlayerGui?, module: Instance
 	return (module and (require)(module) or require("./ControlHints")).CreateUI(getBindFolder(), parent)
 end
 
-function IIAS.get(name: string): IAS.Object?
+function IIAS.get(name: string): BindingObject?
 	return activeBinds[name]
 end
 
-function IIAS.getAll(): {[string]: IAS.Object}
+function IIAS.getAll(): {[string]: BindingObject}
 	return activeBinds
 end
 
@@ -976,7 +989,7 @@ function IIAS.getContext(name: string)
 	return IIAS.contextedBinds[name]
 end
 
-function IIAS.addContext(name: string, ...: IAS.Object)
+function IIAS.addContext(name: string, ...: BindingObject)
 	IIAS.newContext(name)
 	local context = IIAS.contextedBinds[name].Members
 	for _, obj in { ... } do
@@ -1003,7 +1016,7 @@ function IIAS.isContextEnabled(name: string)
 	return IIAS.contextedBinds[name].Enabled
 end
 
-function IIAS.removeFromContext(name: string, bind: IAS.Object)
+function IIAS.removeFromContext(name: string, bind: BindingObject)
 	local context = IIAS.contextedBinds[name]
 	if not context then return end
 	context.Members[bind.Name] = nil
@@ -1023,7 +1036,5 @@ end
 function IIAS.clearContexts()
 	table.clear(IIAS.contextedBinds)
 end
-
-export type IAScriptConnection = IAS.IAScriptConnection
 
 return IIAS

@@ -24,7 +24,7 @@ export type IAScriptSignal = {
 }
 
 export type Node = {
-	fn: func,
+	fn: func?,
 	next: Node?,
 }
 
@@ -51,7 +51,7 @@ export type DiffList = {
 	RemovedModifiers: {	PrimaryModifier: Enum.KeyCode, SecondaryModifier: Enum.KeyCode },
 }
 
-export type Object = {
+export type BindingObject = {
 	Name: string,
 
 	Hold: boolean,
@@ -88,73 +88,72 @@ export type Object = {
 	Started: IAScriptSignal,
 	Ended: IAScriptSignal,
 
-	Fire: (self: Object, active: variant, pressed: boolean) -> (),
+	Fire: (self: BindingObject, active: variant, pressed: boolean) -> (),
 
-	SetHold: (self: Object, bool: boolean) -> (),
-	SetUIButton: (self: Object, button: GuiButton?) -> (),
-	SetTapActivation: (self: Object, requiredTaps: number, tapWindow: number) -> (),
-	SetCooldown: (self: Object, cooldown: number) -> (),
-	ResetCooldown: (self: Object) -> (),
+	SetHold: (self: BindingObject, bool: boolean) -> (),
+	SetUIButton: (self: BindingObject, button: GuiButton?) -> (),
+	SetTapActivation: (self: BindingObject, requiredTaps: number, tapWindow: number) -> (),
+	SetCooldown: (self: BindingObject, cooldown: number) -> (),
+	ResetCooldown: (self: BindingObject) -> (),
 
-	SetEnabled: (self: Object, bool: boolean) -> (),
-	IsEnabled: (self: Object) -> boolean,
+	SetEnabled: (self: BindingObject, bool: boolean) -> (),
+	IsEnabled: (self: BindingObject) -> boolean,
 
-	SetPriority: (self: Object, number: number) -> (),
-	GetPriority: (self: Object) -> (number),
+	SetPriority: (self: BindingObject, number: number) -> (),
+	GetPriority: (self: BindingObject) -> (number),
 
-	SetSink: (self: Object, bool: boolean) -> (),
-	GetSink: (self: Object) -> (boolean),
+	SetSink: (self: BindingObject, bool: boolean) -> (),
+	GetSink: (self: BindingObject) -> (boolean),
 
-	SetScale: (self: Object, scale: number) -> (),
-	GetScale: (self: Object) -> (number),
+	SetScale: (self: BindingObject, scale: number) -> (),
+	GetScale: (self: BindingObject) -> (number),
 
-	SetVectorScale: (self: Object, vector: Vector2 | Vector3) -> (),
-	GetVectorScale: (self: Object) -> (Vector2 | Vector3),
+	SetVectorScale: (self: BindingObject, vector: Vector2 | Vector3) -> (),
+	GetVectorScale: (self: BindingObject) -> (Vector2 | Vector3),
 
-	SetResponseCurve: (self: Object, curve: number) -> (),
-	GetResponseCurve: (self: Object) -> (number),
+	SetResponseCurve: (self: BindingObject, curve: number) -> (),
+	GetResponseCurve: (self: BindingObject) -> (number),
 
-	SetPressedThreshold: (self: Object, threshold: number) -> (),
-	GetPressedThreshold: (self: Object) -> (number),
+	SetPressedThreshold: (self: BindingObject, threshold: number) -> (),
+	GetPressedThreshold: (self: BindingObject) -> (number),
 
-	SetReleasedThreshold: (self: Object, threshold: number) -> (),
-	GetReleasedThreshold: (self: Object) -> (number),
+	SetReleasedThreshold: (self: BindingObject, threshold: number) -> (),
+	GetReleasedThreshold: (self: BindingObject) -> (number),
 
-	SetPointerIndex: (self: Object, index: number) -> (),
-	GetPointerIndex: (self: Object) -> (number),
+	SetPointerIndex: (self: BindingObject, index: number) -> (),
+	GetPointerIndex: (self: BindingObject) -> (number),
 
-	SetClampMagnitudeToOne: (self: Object, bool: boolean) -> (),
-	GetClampMagnitudeToOne: (self: Object) -> (boolean),
+	SetClampMagnitudeToOne: (self: BindingObject, bool: boolean) -> (),
+	GetClampMagnitudeToOne: (self: BindingObject) -> (boolean),
 
-	GetState: (self: Object) -> (variant),
+	GetState: (self: BindingObject) -> (variant),
 
-	SetInputBufferEnabled: (self: Object, bool: boolean) -> (),
-	SetInputBufferTime: (self: Object, t: number) -> (),
+	SetInputBufferEnabled: (self: BindingObject, bool: boolean) -> (),
+	SetInputBufferTime: (self: BindingObject, t: number) -> (),
 
-	GetBinds: (self: Object) -> (Binds),
+	GetBinds: (self: BindingObject) -> (Binds),
 
-	GetCooldownRemaining: (self: Object) -> (number),
-	IsBuffered: (self: Object) -> (boolean),
-	ResetBuffer: (self: Object) -> (),
-	GetBufferedVariant: (self: Object) -> (variant?),
-	GetBufferedKey: (self: Object) -> (Enum.KeyCode?),
-	GetActiveBindCount: (self: Object) -> (number),
-	GetToggleState: (self: Object) -> (boolean),
-	GetActiveMainKey: (self: Object) -> (Enum.KeyCode?),
+	GetCooldownRemaining: (self: BindingObject) -> (number),
+	IsBuffered: (self: BindingObject) -> (boolean),
+	ResetBuffer: (self: BindingObject) -> (),
+	GetBufferedVariant: (self: BindingObject) -> (variant?),
+	GetBufferedKey: (self: BindingObject) -> (Enum.KeyCode?),
+	GetActiveBindCount: (self: BindingObject) -> (number),
+	GetToggleState: (self: BindingObject) -> (boolean),
+	GetActiveMainKey: (self: BindingObject) -> (Enum.KeyCode?),
 
+	AddBind: (self: BindingObject, mainKey: supposedKeyCode, PrimaryModifier: supposedKeyCode?, SecondaryModifier: supposedKeyCode?) -> (),
+	SetBind: (self: BindingObject, mainKey: supposedKeyCode, PrimaryModifier: supposedKeyCode?, SecondaryModifier: supposedKeyCode?) -> (),
+	RemoveBind: (self: BindingObject, mainKey: supposedKeyCode, PrimaryModifier: supposedKeyCode?, SecondaryModifier: supposedKeyCode?) -> (),
+	EditBind: (self: BindingObject, oldMain: supposedKeyCode, oldMods: {PrimaryModifier: supposedKeyCode?, SecondaryModifier: supposedKeyCode? }, newMain: supposedKeyCode, newMods: {	PrimaryModifier: supposedKeyCode?, SecondaryModifier: supposedKeyCode? }) -> (),
+	SetDisplayName: (self: BindingObject, mainKey: supposedKeyCode, displayName: string) -> (boolean),
+	GetDisplayName: (self: BindingObject, mainKey: supposedKeyCode) -> (string?),
+	ClearBinds: (self: BindingObject) -> (),
 
-	AddBind: (self: Object, mainKey: supposedKeyCode, PrimaryModifier: supposedKeyCode?, SecondaryModifier: supposedKeyCode?) -> (),
-	SetBind: (self: Object, mainKey: supposedKeyCode, PrimaryModifier: supposedKeyCode?, SecondaryModifier: supposedKeyCode?) -> (),
-	RemoveBind: (self: Object, mainKey: supposedKeyCode, PrimaryModifier: supposedKeyCode?, SecondaryModifier: supposedKeyCode?) -> (),
-	EditBind: (self: Object, oldMain: supposedKeyCode, oldMods: {PrimaryModifier: supposedKeyCode?, SecondaryModifier: supposedKeyCode? }, newMain: supposedKeyCode, newMods: {	PrimaryModifier: supposedKeyCode?, SecondaryModifier: supposedKeyCode? }) -> (),
-	SetDisplayName: (self: Object, mainKey: supposedKeyCode, displayName: string) -> (boolean),
-	GetDisplayName: (self: Object, mainKey: supposedKeyCode) -> (string?),
-	ClearBinds: (self: Object) -> (),
+	SetCompositeDirections: (self: BindingObject, up: supposedKeyCode?, down: supposedKeyCode?, left: supposedKeyCode?, right: supposedKeyCode?, forward: supposedKeyCode?, backward: supposedKeyCode?) -> (),
+	SetCompositeModifiers: (self: BindingObject, PrimaryModifier: supposedKeyCode?, SecondaryModifier: supposedKeyCode?) -> (),
 
-	SetCompositeDirections: (self: Object, up: supposedKeyCode?, down: supposedKeyCode?, left: supposedKeyCode?, right: supposedKeyCode?, forward: supposedKeyCode?, backward: supposedKeyCode?) -> (),
-	SetCompositeModifiers: (self: Object, PrimaryModifier: supposedKeyCode?, SecondaryModifier: supposedKeyCode?) -> (),
-
-	Destroy: (self: Object) -> (boolean),
+	Destroy: (self: BindingObject) -> (boolean),
 }
 
 export type Context = { Enabled: boolean, Members: {[string]: boolean}}
@@ -164,22 +163,21 @@ export type Contexts = { [string]: Context }
 export type IllusionIAS = {
 	contextedBinds: Contexts,
 	enableControlHints: (parent: Instance | PlayerGui?, module: Instance | string?) -> ScreenGui,
-	new: (name: string, inputType: Enum.InputActionType?) -> Object,
-	get: (name: string) -> Object?,
-	getAll: () -> {[string]: Object},
+	new: (name: string, inputType: Enum.InputActionType?) -> BindingObject,
+	get: (name: string) -> BindingObject?,
+	getAll: () -> {[string]: BindingObject},
 	newContext: (name: string) -> (),
 	getContext: (name: string) -> (Context),
-	addContext: (name: string, ...Object) -> (),
+	addContext: (name: string, ...BindingObject) -> (),
 	enableContext: (name: string, enabled: boolean) -> (), 
 	isContextEnabled: (name: string) -> boolean,
 	removeContext: (name: string) -> (),
-	removeFromContext: (name: string, bind: Object) -> (),
+	removeFromContext: (name: string, bind: BindingObject) -> (),
 	removeAllFromContext: (name: string) -> (),
 	clearContexts: () -> (),
 }
 
 local InputTypeByKey: {[Enum.KeyCode]: "Keyboard" | "Gamepad" | "Mobile"} = {
-	-- Keyboard
 	[Enum.KeyCode.MouseLeftButton] = "Keyboard",
 	[Enum.KeyCode.MouseRightButton] = "Keyboard",
 	[Enum.KeyCode.MouseMiddleButton] = "Keyboard",
@@ -245,7 +243,6 @@ local InputTypeByKey: {[Enum.KeyCode]: "Keyboard" | "Gamepad" | "Mobile"} = {
 	[Enum.KeyCode.Minus] = "Keyboard",
 	[Enum.KeyCode.Equals] = "Keyboard",
 
-	-- Gamepad
 	[Enum.KeyCode.ButtonA] = "Gamepad",
 	[Enum.KeyCode.ButtonB] = "Gamepad",
 	[Enum.KeyCode.ButtonX] = "Gamepad",
@@ -263,7 +260,6 @@ local InputTypeByKey: {[Enum.KeyCode]: "Keyboard" | "Gamepad" | "Mobile"} = {
 	[Enum.KeyCode.ButtonStart] = "Gamepad",
 	[Enum.KeyCode.ButtonSelect] = "Gamepad",
 
-	-- Mobile
 	[Enum.KeyCode.Touch] = "Mobile",
 }
 

@@ -69,16 +69,16 @@ return {
 			Wait = function(self: IAS.IAScriptSignal): IAS.variant
 				local thread = coroutine.running()
 				local conn: IAS.IAScriptConnection
-				local args: {any}? = nil
+				local activeValue: IAS.variant? = nil
 
-				conn = self:Connect(function(...)
+				conn = self:Connect(function(active: IAS.variant)
 					conn:Disconnect()
-					args = table.pack(...)
+					activeValue = active
 					task.spawn(thread)
 				end)
 
 				coroutine.yield()
-				return table.unpack(args or {})
+				return activeValue :: IAS.variant
 			end,
 
 			Fire = function(self: IAS.IAScriptSignal, active: IAS.variant, pressed: boolean?)
@@ -95,7 +95,7 @@ return {
 			DisconnectAll = function(self)
 				local node = head
 				while node do
-					node.fn = nil::any
+					node.fn = nil
 					local nextNode = node.next
 					node.next = nil
 					node = nextNode
