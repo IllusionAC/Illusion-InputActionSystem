@@ -963,9 +963,9 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 	return self
 end
 
-function IIAS.enableControlHints(parent: Instance | PlayerGui?, module: Instance | string?): ScreenGui
+function IIAS.enableControlHints(module: Instance | string, parent: Instance | PlayerGui?): ScreenGui
 	-- Credits: ZurichBT - ControlHints https://devforum.roblox.com/t/control-hints-show-your-ias-bindings-pc-xbox-playstation-mobile/3978604/
-	return (module and (require)(module) or require("./ControlHints")).CreateUI(getBindFolder(), parent)
+	return (module and (require)(module)).CreateUI(getBindFolder(), parent)
 end
 
 function IIAS.get(name: string): BindingObject?
