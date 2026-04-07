@@ -991,9 +991,10 @@ end
 
 function IIAS.addContext(name: string, ...: BindingObject)
 	IIAS.newContext(name)
-	local context = IIAS.contextedBinds[name].Members
+	local context = IIAS.contextedBinds[name]
 	for _, obj in { ... } do
-		context[obj.Name] = true
+		context.Members[obj.Name] = true
+		obj:SetEnabled(context.Enabled)
 	end
 end
 
