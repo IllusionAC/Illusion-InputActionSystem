@@ -151,6 +151,7 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 		SetTapActivation = function() end,
 		SetCooldown = function() end,
 		ResetCooldown = function() end,
+		CooldownEnded = function(): boolean return true end,
 
 		SetEnabled = function() end,
 		IsEnabled = function(): boolean return true end,
@@ -201,6 +202,7 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 		ClearBinds = function() end,
 		GetBinds = function(): Binds return {} end,
 		AddBind = function() end,
+		SetAllBinds = function() end,
 		SetBind = function() end,
 		RemoveBind = function() end,
 		EditBind = function() end,
@@ -280,15 +282,15 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 				_ActiveMainKey = keyEnum
 				activeKeysCounted = { [keyEnum] = true }
 				_ActiveBindCount = 1
-				if self.Cooldown > 0 then _CooldownUntil = now + self.Cooldown end
 				fire(true, true)
+				if self.Cooldown > 0 then _CooldownUntil = now + self.Cooldown end
 				return true
 			else
-				if self.Cooldown > 0 then _CooldownUntil = now + self.Cooldown end
 				_ToggleState = not _ToggleState
 				_ActiveMainKey = keyEnum
 				activeKeysCounted = { [keyEnum] = true }
 				fire(_ToggleState, true)
+				if self.Cooldown > 0 then _CooldownUntil = now + self.Cooldown end
 				return true
 			end
 		else
@@ -297,15 +299,15 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 				_ActiveMainKey = keyEnum
 				activeKeysCounted = { [keyEnum] = true }
 				_ActiveBindCount = 1
-				if self.Cooldown > 0 then _CooldownUntil = now + self.Cooldown end
 				fire(toFire, true)
+				if self.Cooldown > 0 then _CooldownUntil = now + self.Cooldown end
 				return true
 			else
-				if self.Cooldown > 0 then _CooldownUntil = now + self.Cooldown end
 				_ToggleState = not _ToggleState
 				_ActiveMainKey = keyEnum
 				activeKeysCounted = { [keyEnum] = true }
 				fire((_ToggleState) and toFire or variantBaseValue, true)
+				if self.Cooldown > 0 then _CooldownUntil = now + self.Cooldown end
 				return true
 			end
 		end
@@ -356,10 +358,6 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 							return
 						end
 
-						if self.Cooldown > 0 then
-							_CooldownUntil = now + self.Cooldown
-						end
-
 						if self.Hold then
 							_ActiveMainKey = keyEnum
 							activeKeysCounted = { [keyEnum] = true }
@@ -370,6 +368,10 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 							_ActiveMainKey = keyEnum
 							activeKeysCounted = { [keyEnum] = true }
 							fire(_ToggleState, true)
+						end
+
+						if self.Cooldown > 0 then
+							_CooldownUntil = now + self.Cooldown
 						end
 
 						_TapCount = 0
@@ -439,10 +441,6 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 							return
 						end
 
-						if self.Cooldown > 0 then
-							_CooldownUntil = now + self.Cooldown
-						end
-
 						if self.Hold then
 							_ActiveMainKey = keyEnum
 							activeKeysCounted = { [keyEnum] = true }
@@ -453,6 +451,10 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 							_ActiveMainKey = keyEnum
 							activeKeysCounted = { [keyEnum] = true }
 							fire((_ToggleState) and variant or variantBaseValue, true)
+						end
+
+						if self.Cooldown > 0 then
+							_CooldownUntil = now + self.Cooldown
 						end
 
 						_TapCount = 0
@@ -497,11 +499,11 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 						return
 					end
 
+					fire(variant, true)
+
 					if self.Cooldown > 0 then
 						_CooldownUntil = now + self.Cooldown
 					end
-
-					fire(variant, true)
 
 					return
 				end
@@ -588,6 +590,10 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 
 	function self:ResetCooldown()
 		_CooldownUntil = 0
+	end
+
+	function self:CooldownEnded(): boolean
+		return self:GetCooldownRemaining() <= 0
 	end
 
 	function self:SetTapActivation(requiredTaps: number, tapWindow: number)
@@ -794,6 +800,10 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 		BindUtils.AddBind(self.Binds, bindName, mainKey, PrimaryModifier, SecondaryModifier)
 		rebuild()
 		return
+	end
+	
+	function self:SetAllBinds(Binds: Binds)
+		self.Binds = Binds
 	end
 
 	function self:SetBind(mainKey: supposedKeyCode, PrimaryModifier: supposedKeyCode?, SecondaryModifier: supposedKeyCode?)

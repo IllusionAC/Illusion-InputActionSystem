@@ -95,6 +95,7 @@ export type BindingObject = {
 	SetTapActivation: (self: BindingObject, requiredTaps: number, tapWindow: number) -> (),
 	SetCooldown: (self: BindingObject, cooldown: number) -> (),
 	ResetCooldown: (self: BindingObject) -> (),
+	CooldownEnded: (self: BindingObject) -> (boolean),
 
 	SetEnabled: (self: BindingObject, bool: boolean) -> (),
 	IsEnabled: (self: BindingObject) -> boolean,
@@ -144,6 +145,7 @@ export type BindingObject = {
 
 	AddBind: (self: BindingObject, mainKey: supposedKeyCode, PrimaryModifier: supposedKeyCode?, SecondaryModifier: supposedKeyCode?) -> (),
 	SetBind: (self: BindingObject, mainKey: supposedKeyCode, PrimaryModifier: supposedKeyCode?, SecondaryModifier: supposedKeyCode?) -> (),
+	SetAllBinds: (self: BindingObject, Binds: Binds) -> (),
 	RemoveBind: (self: BindingObject, mainKey: supposedKeyCode, PrimaryModifier: supposedKeyCode?, SecondaryModifier: supposedKeyCode?) -> (),
 	EditBind: (self: BindingObject, oldMain: supposedKeyCode, oldMods: {PrimaryModifier: supposedKeyCode?, SecondaryModifier: supposedKeyCode? }, newMain: supposedKeyCode, newMods: {	PrimaryModifier: supposedKeyCode?, SecondaryModifier: supposedKeyCode? }) -> (),
 	SetDisplayName: (self: BindingObject, mainKey: supposedKeyCode, displayName: string) -> (boolean),

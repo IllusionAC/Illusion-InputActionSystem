@@ -80,6 +80,7 @@ IIAS.removeAllFromContext(name: string): empty a context without deleting it
 :SetUIButton(button: GuiButton?)                -- Link a GUI button as alternate input
 :SetCooldown(cooldown: number)                  -- Set cooldown in seconds (default: 0)
 :ResetCooldown()                                -- Manually reset cooldown
+:CooldownEnded()                                -- True when cooldown is not active
 :SetEnabled(enabled: boolean)                   -- Enable/disable the bind
 :IsEnabled()                                    -- Check if bind is enabled
 :SetTapActivation(taps: number, window: number) -- Require N taps within time window
@@ -141,6 +142,7 @@ IIAS.removeAllFromContext(name: string): empty a context without deleting it
 
 ```lua
 :GetCooldownRemaining() -- number: seconds remaining on the current cooldown (0 if none).
+:CooldownEnded() -- boolean: true when cooldown is inactive, false while cooldown is active.
 :IsBuffered() -- boolean: whether an input is currently buffered.
 :ResetBuffer() -- void: clears any buffered input.
 :GetBufferedVariant() -- variant?: the buffered variant value (Vector/number/bool), if present.
@@ -231,6 +233,7 @@ bind:SetCooldown(2)
 bind:SetTapActivation(2, 0.5)
 
 bind.Activated:Connect(function(active, pressed)
+    if not bind:CooldownEnded() then return end
     print("Bind state:", active, "| Key pressed:", pressed)
     -- The binds logic
 end)
