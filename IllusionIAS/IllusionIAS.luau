@@ -192,7 +192,6 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 	local _CooldownUntil = 0
 	local _LastTapTime = 0
 	local _TapCount = 0
-	local _ActiveBindCount = 0
 
 	local _ActiveBindName: string? = nil
 	local _ActiveMainKey: Enum.KeyCode = Enum.KeyCode.None
@@ -203,7 +202,6 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 	local _BufferedKey: Enum.KeyCode = Enum.KeyCode.None
 	local _BufferedVariant: variant? = nil
 
-	local activeBindsCounted: { [string]: boolean } = {}
 	local blockedPresses: { [string]: boolean } = {}
 	local uiButtonDestroyConn: RBXScriptConnection? = nil
 	local uiModifierDestroyConn: RBXScriptConnection? = nil
@@ -254,8 +252,6 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 		_BufferedVariant = nil
 
 		_ActiveBindName = bufferedBind
-		activeBindsCounted[bufferedBind] = true
-		_ActiveBindCount = 1
 		if bufferedBind ~= "UIButton" then
 			_ActiveMainKey = keyEnum
 		else
@@ -355,8 +351,6 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 						end
 
 						_ActiveBindName = bindName
-						activeBindsCounted[bindName] = true
-						_ActiveBindCount = 1
 						if bindName ~= "UIButton" then
 							_ActiveMainKey = keyEnum
 						else
@@ -386,13 +380,11 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 						return
 					end
 
-					if not activeBindsCounted[bindName] then
+					if _ActiveBindName ~= bindName then
 						return
 					end
 
 					if self.Hold then
-						table.clear(activeBindsCounted)
-						_ActiveBindCount = 0
 						_ActiveBindName = nil
 						_ActiveMainKey = Enum.KeyCode.None
 						_ToggleState = false
@@ -406,13 +398,9 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 						fire(if _ToggleState then self.Active else inactiveValue, false)
 					end
 
-					if bindName == _ActiveBindName then
-						table.clear(activeBindsCounted)
-						_ActiveBindCount = 0
-						_ActiveBindName = nil
-						_ActiveMainKey = Enum.KeyCode.None
-						tryConsumeBuffer()
-					end
+					_ActiveBindName = nil
+					_ActiveMainKey = Enum.KeyCode.None
+					tryConsumeBuffer()
 
 					return
 
@@ -552,8 +540,6 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 		if button then
 			uiButtonDestroyConn = button.Destroying:Connect(function()
 				if _ActiveBindName == "UIButton" then
-					table.clear(activeBindsCounted)
-					_ActiveBindCount = 0
 					_ActiveBindName = nil
 					_ActiveMainKey = Enum.KeyCode.None
 					_ToggleState = false
@@ -618,9 +604,12 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 			self.Active = variantBaseValue
 			_ActiveBindName = nil
 			_ActiveMainKey = Enum.KeyCode.None
-			_ActiveBindCount = 0
 			_ToggleState = false
-			table.clear(activeBindsCounted)
+			_Buffered = false
+			_BufferedBindName = nil
+			_BufferedKey = Enum.KeyCode.None
+			_BufferedVariant = nil
+			_TapCount = 0
 			table.clear(blockedPresses)
 			self.Activated:Fire(variantBaseValue, false)
 			self.Ended:Fire(variantBaseValue)
@@ -762,7 +751,7 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 	end
 
 	function self:GetActiveBindCount(): number
-		return _ActiveBindCount
+		return if _ActiveBindName ~= nil then 1 else 0
 	end
 
 	function self:GetToggleState(): boolean
@@ -880,12 +869,7 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 		for bindName, bind in self.Binds do
 			if bindName == "UIButton" or bind.KeyCode ~= keyCode then continue end
 
-			local equal = BindUtils.CheckDifferences(
-				{ X = { KeyCode = keyCode, PrimaryModifier = bind.PrimaryModifier, SecondaryModifier = bind.SecondaryModifier } },
-				{ X = { KeyCode = keyCode, PrimaryModifier = primary, SecondaryModifier = secondary } }
-			)
-
-			if not equal then continue end
+			if not BindUtils.Matches(bind, keyCode, primary, secondary) then continue end
 
 			if bindName == MainName then
 				BindUtils.ResetKeyCode(self.Binds, MainName)
@@ -917,12 +901,7 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 		for bindName, bind in self.Binds do
 			if bindName == "UIButton" or bind.KeyCode ~= oldKeyCode then continue end
 
-			local equal = BindUtils.CheckDifferences(
-				{ X = { KeyCode = oldKeyCode, PrimaryModifier = bind.PrimaryModifier, SecondaryModifier = bind.SecondaryModifier } },
-				{ X = { KeyCode = oldKeyCode, PrimaryModifier = oldPrimary, SecondaryModifier = oldSecondary } }
-			)
-
-			if not equal then continue end
+			if not BindUtils.Matches(bind, oldKeyCode, oldPrimary, oldSecondary) then continue end
 
 			BindUtils.SetKeyCode(self.Binds, bindName, newKeyCode)
 			BindUtils.SetModifiers(self.Binds, bindName, newMods.PrimaryModifier, newMods.SecondaryModifier)

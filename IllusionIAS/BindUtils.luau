@@ -48,6 +48,17 @@ function BindUtils.ConvertKeyCode(name: IAS.supposedKeyCode?): Enum.KeyCode
 	return convertStrToEnumKeycode(name)
 end
 
+function BindUtils.Matches(
+	bind: IAS.Bind,
+	keyCode: Enum.KeyCode,
+	primary: Enum.KeyCode?,
+	secondary: Enum.KeyCode?
+): boolean
+	return bind.KeyCode == keyCode
+		and (bind.PrimaryModifier or Enum.KeyCode.None) == (primary or Enum.KeyCode.None)
+		and (bind.SecondaryModifier or Enum.KeyCode.None) == (secondary or Enum.KeyCode.None)
+end
+
 function BindUtils.AddBind(
 	binds: IAS.Binds,
 	name: string,
