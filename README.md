@@ -21,7 +21,7 @@ If you're working with Roblox's new InputActionSystem or just need robust keybin
 - **Input Buffering**: Capture inputs even during busy frames
 - **Tap Detection**: Trigger actions with double-tap or multi-tap sequences
 - **Priority & Sinking**: Fine control over input processing order
-- **(NEW) Choose between five different InputActionType**: respecting original usage of IAS
+- **Full Roblox IAS Synchronization**: Support for `PreferredBinding`, `InputActionLabel`, `InputBindingType`, and all 5 `InputActionType` modes (`Bool`, `Direction1D`, `Direction2D`, `Direction3D`, `ViewportPosition`)
 
 ---
 
@@ -42,35 +42,29 @@ local IAS = require(game.ReplicatedStorage.IllusionIAS)
 
 Do the same steps as for normal version, but require the module from a Server Script.
 
-Future updates will allow the developer to send proper data to client so he can edit their binds properly.
-
-> **Note:** When updates are released, re-download from the Creator Store or pull from GitHub.
 ---
 
-##  API Reference
+## API Reference
 
-### Create, Manage and give contexts to Binds
+### Create, Manage and Give Contexts to Binds
 
 ```lua
-IIAS.new(name: string, InputType: Enum.InputActionType?) -- Create a new keybind, set a InputActionType (default to Bool)
-IIAS.Get(name: string?)                                  -- Retrieve a specific bind
-IIAS.GetAll()                                            -- Get all registered binds
-IIAS.enableControlHints(parent: Instance | PlayerGui?, module: Instance | string?)
+IIAS.new(name: string, InputType: Enum.InputActionType?) -- Create a new keybind, set an InputActionType (default: Bool)
+IIAS.Get(name: string)                                   -- Retrieve a specific bind (alias of .get)
+IIAS.GetAll()                                            -- Get all registered binds (alias of .getAll)
+IIAS.enableControlHints(module: Instance | string, parent: Instance | PlayerGui?)
                                                          -- Enable ControlHints - By ZurichBT
 
--- IMPORTANT: Context here doesn't stand for InputContext
--- but rather a way to organize your binds.
-
-IIAS.addContext(name: string, ...Object)           -- add a Bind to a context
-IIAS.getContext(name: string)                      -- returns a context
-IIAS.newContext(name: string)                      -- create a new context
-IIAS.enableContext(name: string, enabled: boolean) -- enable or disables all the binds from the context
-IIAS.isContextEnabled(name: string)                -- returns the context's action state
-IIAS.clearContexts()                               -- clear all contexts
-IIAS.removeContext(name: string)                   -- remove a context
-IIAS.removeFromContext(name: string, bind: Object) -- remove a bind from a context
-IIAS.removeAllFromContext(name: string): empty a context without deleting it
-
+-- IMPORTANT: Context here organizes your binds logically.
+IIAS.addContext(name: string, ...Object)           -- Add Binds to a context group
+IIAS.getContext(name: string)                      -- Returns a context group table
+IIAS.newContext(name: string)                      -- Create a new context group
+IIAS.enableContext(name: string, enabled: boolean) -- Enable or disable all binds in the context group
+IIAS.isContextEnabled(name: string)                -- Returns the context group enabled state
+IIAS.clearContexts()                               -- Clear all context groups
+IIAS.removeContext(name: string)                   -- Remove a context group
+IIAS.removeFromContext(name: string, bind: Object) -- Remove a bind from a context group
+IIAS.removeAllFromContext(name: string)            -- Empty a context group without deleting it
 ```
 
 ### Configuration Methods
@@ -78,11 +72,13 @@ IIAS.removeAllFromContext(name: string): empty a context without deleting it
 ```lua
 :SetHold(hold: boolean)                         -- true = hold to activate, false = toggle
 :SetUIButton(button: GuiButton?)                -- Link a GUI button as alternate input
+:SetUIModifier(button: GuiButton?)              -- Link a GUI button as modifier
+:GetUIModifier()                                -- Get linked modifier GUI button
 :SetCooldown(cooldown: number)                  -- Set cooldown in seconds (default: 0)
 :ResetCooldown()                                -- Manually reset cooldown
-:CooldownEnded()                                -- True when cooldown is not active
+:CooldownEnded()                                -- boolean: true when cooldown is not active
 :SetEnabled(enabled: boolean)                   -- Enable/disable the bind
-:IsEnabled()                                    -- Check if bind is enabled
+:IsEnabled()                                    -- Check if bind is enabled (:IsEnable is an alias)
 :SetTapActivation(taps: number, window: number) -- Require N taps within time window
 ```
 
@@ -105,35 +101,61 @@ IIAS.removeAllFromContext(name: string): empty a context without deleting it
 ### Keybind Management
 
 ```lua
-:AddBind(mainKey: KeyCode, ...modifiers: KeyCode)        -- Add a keybind with optional modifiers
-:SetBind(mainKey: KeyCode, ...modifiers: KeyCode)        -- Replace all binds with one
-:GetBinds()                                              -- Get all current keybinds
-:RemoveBind(mainKey: KeyCode, ...modifiers: KeyCode)     -- Remove specific bind
-:EditBind(oldMain, oldMods, newMain, newMods)            -- Replace a bind
+:AddBind(mainKey, primaryMod?, secondaryMod?, uiButton?, uiModifier?, displayName?, displayImage?, bindingType?)
+                                                         -- Add a keybind with optional modifiers and configuration
+:SetBind(mainKey, primaryMod?, secondaryMod?, uiButton?, uiModifier?, displayName?, displayImage?, bindingType?)
+                                                         -- Replace all binds with a single bind
+:GetBinds()                                              -- Get all current keybinds table
+:RemoveBind(mainKey, primaryMod?, secondaryMod?)         -- Remove a specific keybind
+:EditBind(oldMain, oldMods, newMain, newMods)            -- Edit an existing keybind
 :ClearBinds()                                            -- Remove all keybinds
-:Destroy()                                               -- Delete the bind entirely
-:SetCompositeDirections(up, down, left, right, forward, backward) -- Sets composite directions for Directions
+:Destroy()                                               -- Delete the bind and its Roblox instances entirely
+:SetCompositeDirections(up, down, left, right, forward, backward) -- Sets composite directions for directional actions
+:GetCompositeDirections()                                -- Returns table with Up, Down, Left, Right, Forward, Backward
+:SetCompositeModifiers(primaryModifier, secondaryModifier) -- Sets composite modifiers
+:GetCompositeModifiers()                                 -- Returns table with PrimaryModifier, SecondaryModifier
 ```
 
-### InputActionType management
+### Display & Label Helpers
+
+```lua
+:SetDisplayName(mainKey, displayName: string)   -- Set custom display text on InputBinding
+:GetDisplayName(mainKey)                        -- Get display text of binding
+:SetDisplayImage(mainKey, displayImage: any)    -- Set custom image content on InputBinding
+:GetDisplayImage(mainKey)                       -- Get image content of binding
+:SetBindingType(mainKey, bindingType: Enum.InputBindingType) -- Set Automatic or Scriptable
+:GetBindingType(mainKey)                        -- Get binding type
+:CreateActionLabel(parent?: Instance)           -- Creates a native Roblox InputActionLabel bound to this action
+```
+
+### Engine Instance Access
+
+```lua
+:GetInputAction()      -- Returns underlying Roblox InputAction instance
+:GetInputContext()      -- Returns underlying Roblox InputContext instance
+:GetInputBinding(key?) -- Returns specific child InputBinding instance
+:GetPreferredBinding() -- Returns the active InputBinding currently driving the action
+```
+
+### InputActionType Management
 
 ```lua
 :Fire(active, pressed)           -- Fire the bind manually
-:GetState()                      -- Returns active state
+:GetState()                      -- Returns active state matching action type
 :SetScale(scale)                 -- Set Scale for Directions
 :GetScale()                      -- Get Scale for Directions
-:SetVectorScale(vector)          -- Set VectorScale for Directions
-:GetVectorScale()                -- Get VectorScale for Directions
-:SetResponseCurve(curve)         -- Set ReesponseCurve for Directions
+:SetVectorScale(vector)          -- Set VectorScale for Direction2D / Direction3D
+:GetVectorScale()                -- Get VectorScale for Direction2D / Direction3D
+:SetResponseCurve(curve)         -- Set ResponseCurve for Directions
 :GetResponseCurve()              -- Get ResponseCurve for Directions
 :SetPressedThreshold(threshold)  -- Set Pressed Threshold for Bool
 :GetPressedThreshold()           -- Get Pressed Threshold for Bool
 :SetReleasedThreshold(threshold) -- Set Released Threshold for Bool
 :GetReleasedThreshold()          -- Get Released Threshold for Bool
-:SetPointerIndex(Object, index) -> (),
-:GetPointerIndex(Object) -> (number),
-:SetClampMagnitudeToOne(Object, bool) -> (),
-:GetClampMagnitudeToOne(Object) -> (boolean),
+:SetPointerIndex(index)          -- Set PointerIndex
+:GetPointerIndex()               -- Get PointerIndex
+:SetClampMagnitudeToOne(bool)    -- Set ClampMagnitudeToOne
+:GetClampMagnitudeToOne()        -- Get ClampMagnitudeToOne
 ```
 
 ---
@@ -141,40 +163,40 @@ IIAS.removeAllFromContext(name: string): empty a context without deleting it
 ## Utilities / Introspection
 
 ```lua
-:GetCooldownRemaining() -- number: seconds remaining on the current cooldown (0 if none).
-:CooldownEnded() -- boolean: true when cooldown is inactive, false while cooldown is active.
-:IsBuffered() -- boolean: whether an input is currently buffered.
-:ResetBuffer() -- void: clears any buffered input.
-:GetBufferedVariant() -- variant?: the buffered variant value (Vector/number/bool), if present.
-:GetBufferedKey() -- `Enum.KeyCode?`: the buffered key code, if present.
-:GetActiveBindCount() -- number: how many binds are currently active.
-:GetToggleState() -- boolean: current toggle state for toggle-mode binds.
-:GetActiveMainKey() -- `Enum.KeyCode?`: which main key is currently active, if any.
+:GetCooldownRemaining() -- number: seconds remaining on the current cooldown (0 if none)
+:CooldownEnded()        -- boolean: true when cooldown is inactive, false while active
+:IsBuffered()           -- boolean: whether an input is currently buffered
+:ResetBuffer()          -- void: clears any buffered input
+:GetBufferedVariant()   -- variant?: the buffered value, if present
+:GetBufferedKey()       -- Enum.KeyCode?: the buffered key code, if present
+:GetActiveBindCount()   -- number: how many binds are currently active
+:GetToggleState()       -- boolean: current toggle state for toggle-mode binds
+:GetActiveMainKey()     -- Enum.KeyCode?: which main key is currently active, if any
 ```
 
 ### Properties
 
 ```lua
-Keybind.Name         -- The bind's name
-Keybind.Active       -- Current activation state
-Keybind.Enabled      -- Whether bind is enabled
-Keybind.Priority     -- InputContext priority
-Keybind.Sink         -- InputContext sinkability
-Keybind.Hold         -- Hold mode state
-Keybind.Cooldown     -- Cooldown duration
-Keybind.Activated    -- IAScriptSignal event
-Keybind.Started      -- IAScriptSignal event, equivalent to input began
-Keybind.Ended        -- IAScriptSignal event, equivalent to input ended
-Keybind.Scale        -- InputBinding Scale, for Directions
-Keybind.VectorScale  -- InputBinding VectorScale, for Direction2D and 3D
-Keybind.ResponseCurve -- InputBinding ResponseCurve, for Directions
-Keybind.PressedThreshold -- InputBinding PressedThreshold, for Bool
-Keybind.ReleasedThreshold -- InputBinding ReleasedThreshold, for Bool
-Keybind.PointerIndex
-Keybind.ClampMagnitudeToOne
+Keybind.Name              -- The bind's name
+Keybind.Active            -- Current activation state
+Keybind.Enabled           -- Whether bind is enabled
+Keybind.Priority          -- InputContext priority
+Keybind.Sink              -- InputContext sinkability
+Keybind.Hold              -- Hold mode state
+Keybind.Cooldown          -- Cooldown duration
+Keybind.Activated         -- IAScriptSignal event (active, pressed)
+Keybind.Started           -- IAScriptSignal event, fired on input start
+Keybind.Ended             -- IAScriptSignal event, fired on input end
+Keybind.Scale             -- InputBinding Scale
+Keybind.VectorScale       -- InputBinding VectorScale
+Keybind.ResponseCurve     -- InputBinding ResponseCurve
+Keybind.PressedThreshold  -- InputBinding PressedThreshold
+Keybind.ReleasedThreshold -- InputBinding ReleasedThreshold
+Keybind.PointerIndex      -- InputBinding PointerIndex
+Keybind.ClampMagnitudeToOne -- InputBinding ClampMagnitudeToOne
 ```
 
-The `Activated`, `Started`  and `Ended` events works like standard Roblox signals with `:Connect()`, `:Once()`, `:Wait()`, and `:Fire()` methods. This library uses [IllusionSignal](https://github.com/IllusionAC/IllusionSignal) module.
+The `Activated`, `Started`, and `Ended` events work like standard Roblox signals with `:Connect()`, `:Once()`, `:Wait()`, and `:Fire()` methods.
 
 ---
 
@@ -235,7 +257,6 @@ bind:SetTapActivation(2, 0.5)
 bind.Activated:Connect(function(active, pressed)
     if not bind:CooldownEnded() then return end
     print("Bind state:", active, "| Key pressed:", pressed)
-    -- The binds logic
 end)
 ```
 

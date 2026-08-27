@@ -10,20 +10,23 @@ local IAS = require("./TypeDefinition")
 
 return {
 	new = function(): IAS.IAScriptSignal
-		local head: IAS.Node? = nil
+		local head: IAS.Node?
 
 		local function createConnection(node: IAS.Node): IAS.IAScriptConnection
 			local connected = true
 
-			local conn: IAS.IAScriptConnection = {
+			local conn: IAS.IAScriptConnection
+			conn = {
 				Connected = true,
-				Disconnect = function(self)
+				Disconnect = function(self: IAS.IAScriptConnection)
 					if not connected then return end
 					connected = false
 					self.Connected = false
+					node.fn = nil
 
 					if head == node then
 						head = node.next
+						node.next = nil
 						return
 					end
 
@@ -34,6 +37,7 @@ return {
 
 					if current then
 						current.next = node.next
+						node.next = nil
 					end
 				end,
 			}
@@ -56,29 +60,30 @@ return {
 				local fired = false
 				local conn: IAS.IAScriptConnection
 
-				conn = self:Connect(function(...)
+				conn = self:Connect(function(active: IAS.variant, pressed: boolean?)
 					if fired then return end
 					fired = true
-					conn:Disconnect()
-					fn(...)
+					if conn then
+						conn:Disconnect()
+					end
+					fn(active, pressed)
 				end)
 
 				return conn
 			end,
 
-			Wait = function(self: IAS.IAScriptSignal): IAS.variant
+			Wait = function(self: IAS.IAScriptSignal): (IAS.variant, boolean?)
 				local thread = coroutine.running()
 				local conn: IAS.IAScriptConnection
-				local activeValue: IAS.variant? = nil
 
-				conn = self:Connect(function(active: IAS.variant)
-					conn:Disconnect()
-					activeValue = active
-					task.spawn(thread)
+				conn = self:Connect(function(active: IAS.variant, pressed: boolean?)
+					if conn then
+						conn:Disconnect()
+					end
+					task.spawn(thread, active, pressed)
 				end)
 
-				coroutine.yield()
-				return activeValue :: IAS.variant
+				return coroutine.yield()
 			end,
 
 			Fire = function(self: IAS.IAScriptSignal, active: IAS.variant, pressed: boolean?)
@@ -87,12 +92,12 @@ return {
 					local fn = node.fn
 					node = node.next
 					if fn then
-						fn(active, pressed)
+						task.spawn(fn, active, pressed)
 					end
 				end
 			end,
 
-			DisconnectAll = function(self)
+			DisconnectAll = function(self: IAS.IAScriptSignal)
 				local node = head
 				while node do
 					node.fn = nil
@@ -101,10 +106,9 @@ return {
 					node = nextNode
 				end
 				head = nil
-			end
-
+			end,
 		}
 
 		return Signal
-	end
+	end,
 }

@@ -24,7 +24,7 @@ export type Contexts = IAS.Contexts
 export type IllusionIAS = IAS.IllusionIAS
 export type supposedKeyCode = IAS.supposedKeyCode
 
-local function getBindFolder()
+local function getBindFolder(): Instance
 	local existing = script:FindFirstChildOfClass("Folder")
 	if existing then return existing end
 
@@ -34,7 +34,7 @@ local function getBindFolder()
 	return folder
 end
 
-local function instanceSetup(name, inputType, InputContext: InputContext): (InputAction, InputBinding)
+local function instanceSetup(name: string, inputType: Enum.InputActionType, InputContext: InputContext): (InputAction, InputBinding)
 	local InputAction = Instance.new("InputAction")
 	InputAction.Name = name
 	InputAction.Type = inputType
@@ -47,34 +47,55 @@ local function instanceSetup(name, inputType, InputContext: InputContext): (Inpu
 	return InputAction, InputBinding
 end
 
-local function instanceDeletion(name, InputContext: InputContext)
+local function instanceDeletion(name: string, InputContext: InputContext)
 	local inputAction = InputContext:FindFirstChild(name)
 	if inputAction then inputAction:Destroy() end
 end
 
-@native local function valueOfVariantGivesPressed(variant: variant): boolean
-	return 
-		if typeof(variant) == "boolean" then variant 
-		elseif typeof(variant) == "number" then variant ~= 0 
-		elseif typeof(variant) == "Vector2" then variant ~= Vector2.zero 
-		else variant ~= Vector3.zero
+@native local function valueOfVariantGivesPressed(variantValue: variant): boolean
+	if typeof(variantValue) == "boolean" then
+		return variantValue
+	elseif typeof(variantValue) == "number" then
+		return variantValue ~= 0
+	elseif typeof(variantValue) == "Vector2" then
+		return variantValue ~= Vector2.zero
+	elseif typeof(variantValue) == "Vector3" then
+		return variantValue ~= Vector3.zero
+	end
+	return false
 end
 
 @native local function convertStrToEnumKeycode(name: supposedKeyCode?): Enum.KeyCode
-	return (if typeof(name) == "string" then Enum.KeyCode:FromName(name) else name) or Enum.KeyCode.Unknown
+	return BindUtils.ConvertKeyCode(name)
 end
 
 local function getNameForBinding(key: Enum.KeyCode): string
 	return IAS.InputTypeByKey[key] or "Input"
 end
 
-local function getBindNameFromKeyCode(mainKey: Enum.KeyCode, binds: Binds): string?
+local function getBindNameFromKeyOrName(keyOrName: (supposedKeyCode | string)?, binds: Binds): string?
+	if not keyOrName then return "MainAction" end
+
+	if typeof(keyOrName) == "string" and binds[keyOrName] then
+		return keyOrName
+	end
+
+	local keyEnum = convertStrToEnumKeycode(keyOrName)
 	for bindName, bind in binds do
-		if bind.KeyCode == mainKey then
+		if bindName ~= "UIButton" and bind.KeyCode == keyEnum then
 			return bindName
 		end
 	end
 
+	return nil
+end
+
+local function getBindNameFromKeyCode(mainKey: Enum.KeyCode, binds: Binds): string?
+	for bindName, bind in binds do
+		if bindName ~= "UIButton" and bind.KeyCode == mainKey then
+			return bindName
+		end
+	end
 	return nil
 end
 
@@ -87,16 +108,18 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 	if activeBinds[name] then return activeBinds[name] end
 	local InputType = inputType or Enum.InputActionType.Bool
 
-	local variantBaseValue: variant = 
+	local variantBaseValue: variant =
 		if InputType == Enum.InputActionType.Bool then false
-		elseif InputType == Enum.InputActionType.Direction1D then 0	
-		elseif InputType == Enum.InputActionType.Direction2D then Vector2.zero
+		elseif InputType == Enum.InputActionType.Direction1D then 0
+		elseif InputType == Enum.InputActionType.Direction2D or InputType == Enum.InputActionType.ViewportPosition then Vector2.zero
 		else Vector3.zero
 
-	local InputContext: InputContext? = Instance.new("InputContext")
-	if not InputContext then return {} :: BindingObject end
+	local InputContext = Instance.new("InputContext")
 
 	InputContext.Name = name
+	InputContext.Priority = 1000
+	InputContext.Sink = false
+	InputContext.Enabled = true
 	InputContext.Parent = getBindFolder()
 
 	local MainName = "MainAction"
@@ -108,13 +131,29 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 
 		Binds = {
 			MainAction = {
-				KeyCode = Enum.KeyCode.Unknown, 
-				PrimaryModifier = Enum.KeyCode.Unknown,
-				SecondaryModifier = Enum.KeyCode.Unknown
-			}
+				KeyCode = Enum.KeyCode.None,
+				PrimaryModifier = Enum.KeyCode.None,
+				SecondaryModifier = Enum.KeyCode.None,
+				UIButton = nil,
+				UIModifier = nil,
+				DisplayName = "",
+				DisplayImage = nil,
+				Type = Enum.InputBindingType.Automatic,
+			},
+			UIButton = {
+				KeyCode = Enum.KeyCode.None,
+				PrimaryModifier = Enum.KeyCode.None,
+				SecondaryModifier = Enum.KeyCode.None,
+				UIButton = nil,
+				UIModifier = nil,
+				DisplayName = "",
+				DisplayImage = nil,
+				Type = Enum.InputBindingType.Automatic,
+			},
 		},
 
 		UIButton = nil,
+		UIModifier = nil,
 
 		Active = variantBaseValue,
 
@@ -123,7 +162,7 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 		Sink = false,
 
 		Scale = 1,
-		VectorScale = InputType == Enum.InputActionType.Direction2D and Vector2.one or Vector3.one,
+		VectorScale = if InputType == Enum.InputActionType.Direction2D then Vector2.one else Vector3.one,
 		ResponseCurve = 1,
 
 		PointerIndex = 1,
@@ -143,78 +182,8 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 		Activated = IASignal.new(),
 		Started = IASignal.new(),
 		Ended = IASignal.new(),
-
-		Fire = function() end,
-
-		SetHold = function() end,
-		SetUIButton = function() end,
-		SetTapActivation = function() end,
-		SetCooldown = function() end,
-		ResetCooldown = function() end,
-		CooldownEnded = function(): boolean return true end,
-
-		SetEnabled = function() end,
-		IsEnabled = function(): boolean return true end,
-
-		SetPriority = function() end,
-		GetPriority = function(): number return 1000 end,
-
-		SetSink = function() end,
-		GetSink = function(): boolean return false end,
-
-		SetScale = function() end,
-		GetScale = function(): number return 0 end,
-
-		SetVectorScale = function() end,
-		GetVectorScale = function(): Vector2 | Vector3 return Vector2.zero end,
-
-		SetResponseCurve = function() end,
-		GetResponseCurve = function(): number return 0 end,
-
-		SetPressedThreshold = function() end,
-		GetPressedThreshold = function(): number return 0.5 end,
-
-		SetReleasedThreshold = function() end,
-		GetReleasedThreshold = function(): number return 0.2 end,
-
-		SetPointerIndex = function() end,
-		GetPointerIndex = function(): number return 1 end,
-
-		SetClampMagnitudeToOne = function() end,
-		GetClampMagnitudeToOne = function(): boolean return true end,
-
-		GetState = function(): variant return 0 end,
-
-		SetInputBufferEnabled = function() end,
-		SetInputBufferTime = function() end,
-
-		GetCooldownRemaining = function(): number return 0 end,
-		IsBuffered = function(): boolean return false end,
-		ResetBuffer = function() end,
-
-		GetBufferedVariant = function(): variant? return 0 end,
-		GetBufferedKey = function(): Enum.KeyCode? return Enum.KeyCode.Unknown end,
-
-		GetActiveBindCount = function(): number return 0 end,
-		GetActiveMainKey = function(): Enum.KeyCode? return Enum.KeyCode.Unknown end,
-		GetToggleState = function(): boolean return false end,
-
-		ClearBinds = function() end,
-		GetBinds = function(): Binds return {} end,
-		AddBind = function() end,
-		SetAllBinds = function() end,
-		SetBind = function() end,
-		RemoveBind = function() end,
-		EditBind = function() end,
-		SetDisplayName = function(): boolean return false end,
-		GetDisplayName = function(): string? return nil end,
-
-		SetCompositeDirections = function() end,
-		SetCompositeModifiers = function() end,
-
-		Destroy = function(): boolean return false end,
-	}
-
+	} :: BindingObject
+	
 	local stateConnections: { [string]: RBXScriptConnection } = {}
 
 	local _PrevBinds = BindUtils.Clone(self.Binds)
@@ -225,15 +194,17 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 	local _TapCount = 0
 	local _ActiveBindCount = 0
 
-	local _ActiveMainKey: Enum.KeyCode? = nil
+	local _ActiveBindName: string? = nil
+	local _ActiveMainKey: Enum.KeyCode = Enum.KeyCode.None
 
 	local _Buffered = false
 	local _BufferedTime = 0
-	local _BufferedKey: Enum.KeyCode? = nil
+	local _BufferedBindName: string? = nil
+	local _BufferedKey: Enum.KeyCode = Enum.KeyCode.None
 	local _BufferedVariant: variant? = nil
 
-	local activeKeysCounted: { [Enum.KeyCode]: boolean } = {}
-	local blockedPresses: { [Enum.KeyCode]: boolean } = {}
+	local activeBindsCounted: { [string]: boolean } = {}
+	local blockedPresses: { [string]: boolean } = {}
 
 	local function fire(value: variant, pressed: boolean)
 		if not self.Enabled then return end
@@ -248,47 +219,54 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 		end
 	end
 
-	local function tryConsumeBuffer()
+	local function tryConsumeBuffer(): boolean
 		if not _Buffered then return false end
 
-		if (time() - _BufferedTime) > self.InputBufferTime then
+		local now = time()
+		if (now - _BufferedTime) > self.InputBufferTime then
 			_Buffered = false
-			_BufferedKey = nil
+			_BufferedBindName = nil
+			_BufferedKey = Enum.KeyCode.None
 			_BufferedVariant = nil
 			return false
 		end
 
-		if _ActiveMainKey and _ActiveMainKey ~= _BufferedKey then
+		if _ActiveBindName and _ActiveBindName ~= _BufferedBindName then
 			return false
 		end
 
-		local now = time()
 		if self.Cooldown > 0 and now < _CooldownUntil then
 			_Buffered = false
-			_BufferedKey = nil
+			_BufferedBindName = nil
+			_BufferedKey = Enum.KeyCode.None
 			_BufferedVariant = nil
 			return false
 		end
 
 		_Buffered = false
-		if not _BufferedKey then return false end
+		local bufferedBind = _BufferedBindName or MainName
 		local keyEnum = _BufferedKey
 		local bufferedVariant = _BufferedVariant
-		_BufferedKey = nil
+		_BufferedBindName = nil
+		_BufferedKey = Enum.KeyCode.None
 		_BufferedVariant = nil
+
+		_ActiveBindName = bufferedBind
+		activeBindsCounted[bufferedBind] = true
+		_ActiveBindCount = 1
+		if bufferedBind ~= "UIButton" then
+			_ActiveMainKey = keyEnum
+		else
+			_ActiveMainKey = Enum.KeyCode.None
+		end
 
 		if InputType == Enum.InputActionType.Bool then
 			if self.Hold then
-				_ActiveMainKey = keyEnum
-				activeKeysCounted = { [keyEnum] = true }
-				_ActiveBindCount = 1
 				fire(true, true)
 				if self.Cooldown > 0 then _CooldownUntil = now + self.Cooldown end
 				return true
 			else
 				_ToggleState = not _ToggleState
-				_ActiveMainKey = keyEnum
-				activeKeysCounted = { [keyEnum] = true }
 				fire(_ToggleState, true)
 				if self.Cooldown > 0 then _CooldownUntil = now + self.Cooldown end
 				return true
@@ -296,25 +274,46 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 		else
 			local toFire = bufferedVariant or variantBaseValue
 			if self.Hold then
-				_ActiveMainKey = keyEnum
-				activeKeysCounted = { [keyEnum] = true }
-				_ActiveBindCount = 1
 				fire(toFire, true)
 				if self.Cooldown > 0 then _CooldownUntil = now + self.Cooldown end
 				return true
 			else
 				_ToggleState = not _ToggleState
-				_ActiveMainKey = keyEnum
-				activeKeysCounted = { [keyEnum] = true }
-				fire((_ToggleState) and toFire or variantBaseValue, true)
+				fire(if _ToggleState then toFire else variantBaseValue, true)
 				if self.Cooldown > 0 then _CooldownUntil = now + self.Cooldown end
 				return true
 			end
 		end
 	end
 
-	local childAddedConn: RBXScriptConnection? = InputContext.ChildAdded:Connect(function(child)
-		if child:IsA("InputAction") then			
+	local function applyBindingProperties(binding: InputBinding)
+		binding.Scale = self.Scale
+		if InputType == Enum.InputActionType.Direction2D then
+			binding.Vector2Scale = if typeof(self.VectorScale) == "Vector2" then self.VectorScale else Vector2.one
+		elseif InputType == Enum.InputActionType.Direction3D then
+			binding.Vector3Scale = if typeof(self.VectorScale) == "Vector3" then self.VectorScale else Vector3.one
+		end
+		binding.ResponseCurve = self.ResponseCurve
+		binding.PressedThreshold = self.PressedThreshold
+		binding.ReleasedThreshold = self.ReleasedThreshold
+		binding.PointerIndex = self.PointerIndex
+		binding.ClampMagnitudeToOne = self.ClampMagnitudeToOne
+	end
+
+	local function updateAllBindingsProperties()
+		if not InputContext then return end
+		for _, action in InputContext:GetChildren() do
+			if action:IsA("InputAction") then
+				local binding = action:FindFirstChildOfClass("InputBinding")
+				if binding then
+					applyBindingProperties(binding)
+				end
+			end
+		end
+	end
+
+	local function connectAction(child: Instance)
+		if child:IsA("InputAction") then
 			stateConnections[child.Name] = child.StateChanged:Connect(function(variant: variant)
 				if not self.Enabled then return end
 
@@ -323,19 +322,20 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 				local inputBinding = child:FindFirstChildOfClass("InputBinding")
 				if not inputBinding then return end
 
-				local keyEnum = inputBinding.KeyCode
+				local bindName = child.Name
+				local keyEnum = if bindName ~= "UIButton" then inputBinding.KeyCode else Enum.KeyCode.None
 
 				local now = time()
 
 				if InputType == Enum.InputActionType.Bool then
 					if pressed then
-						if _ActiveMainKey and _ActiveMainKey ~= keyEnum then
+						if _ActiveBindName ~= nil and _ActiveBindName ~= bindName then
 							if self.InputBufferEnabled then
 								_Buffered = true
 								_BufferedTime = now
+								_BufferedBindName = bindName
 								_BufferedKey = keyEnum
 							end
-
 							return
 						end
 
@@ -354,19 +354,23 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 
 						if self.Cooldown > 0 and now < _CooldownUntil then
 							fire(false, true)
-							blockedPresses[keyEnum] = true
+							blockedPresses[bindName] = true
 							return
 						end
 
-						if self.Hold then
+						_ActiveBindName = bindName
+						activeBindsCounted[bindName] = true
+						_ActiveBindCount = 1
+						if bindName ~= "UIButton" then
 							_ActiveMainKey = keyEnum
-							activeKeysCounted = { [keyEnum] = true }
-							_ActiveBindCount = 1
+						else
+							_ActiveMainKey = Enum.KeyCode.None
+						end
+
+						if self.Hold then
 							fire(true, true)
 						else
 							_ToggleState = not _ToggleState
-							_ActiveMainKey = keyEnum
-							activeKeysCounted = { [keyEnum] = true }
 							fire(_ToggleState, true)
 						end
 
@@ -378,20 +382,21 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 						return
 					end
 
-					if blockedPresses[keyEnum] then
-						blockedPresses[keyEnum] = nil
+					if blockedPresses[bindName] then
+						blockedPresses[bindName] = nil
 						fire(false, false)
 						return
 					end
 
-					if not activeKeysCounted[keyEnum] then
+					if not activeBindsCounted[bindName] then
 						return
 					end
 
 					if self.Hold then
-						table.clear(activeKeysCounted)
+						table.clear(activeBindsCounted)
 						_ActiveBindCount = 0
-						_ActiveMainKey = nil
+						_ActiveBindName = nil
+						_ActiveMainKey = Enum.KeyCode.None
 						_ToggleState = false
 						fire(false, false)
 
@@ -403,22 +408,26 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 						fire(_ToggleState, false)
 					end
 
-					if keyEnum == _ActiveMainKey then
-						_ActiveMainKey = nil
+					if bindName == _ActiveBindName then
+						table.clear(activeBindsCounted)
+						_ActiveBindCount = 0
+						_ActiveBindName = nil
+						_ActiveMainKey = Enum.KeyCode.None
 						tryConsumeBuffer()
 					end
 
 					return
+
 				elseif InputType == Enum.InputActionType.Direction1D or InputType == Enum.InputActionType.Direction2D or InputType == Enum.InputActionType.Direction3D then
 					if pressed then
-						if _ActiveMainKey and _ActiveMainKey ~= keyEnum then
+						if _ActiveBindName ~= nil and _ActiveBindName ~= bindName then
 							if self.InputBufferEnabled then
 								_Buffered = true
 								_BufferedTime = now
+								_BufferedBindName = bindName
 								_BufferedKey = keyEnum
 								_BufferedVariant = variant
 							end
-
 							return
 						end
 
@@ -437,20 +446,24 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 
 						if self.Cooldown > 0 and now < _CooldownUntil then
 							fire(variantBaseValue, true)
-							blockedPresses[keyEnum] = true
+							blockedPresses[bindName] = true
 							return
 						end
 
-						if self.Hold then
+						_ActiveBindName = bindName
+						activeBindsCounted[bindName] = true
+						_ActiveBindCount = 1
+						if bindName ~= "UIButton" then
 							_ActiveMainKey = keyEnum
-							activeKeysCounted = { [keyEnum] = true }
-							_ActiveBindCount = 1
+						else
+							_ActiveMainKey = Enum.KeyCode.None
+						end
+
+						if self.Hold then
 							fire(variant, true)
 						else
 							_ToggleState = not _ToggleState
-							_ActiveMainKey = keyEnum
-							activeKeysCounted = { [keyEnum] = true }
-							fire((_ToggleState) and variant or variantBaseValue, true)
+							fire(if _ToggleState then variant else variantBaseValue, true)
 						end
 
 						if self.Cooldown > 0 then
@@ -461,20 +474,21 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 						return
 					end
 
-					if blockedPresses[keyEnum] then
-						blockedPresses[keyEnum] = nil
+					if blockedPresses[bindName] then
+						blockedPresses[bindName] = nil
 						fire(variantBaseValue, false)
 						return
 					end
 
-					if not activeKeysCounted[keyEnum] then
+					if not activeBindsCounted[bindName] then
 						return
 					end
 
 					if self.Hold then
-						table.clear(activeKeysCounted)
+						table.clear(activeBindsCounted)
 						_ActiveBindCount = 0
-						_ActiveMainKey = nil
+						_ActiveBindName = nil
+						_ActiveMainKey = Enum.KeyCode.None
 						_ToggleState = false
 						fire(variantBaseValue, false)
 
@@ -483,11 +497,14 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 					end
 
 					if _TapCount == 0 then
-						fire((_ToggleState) and variant or variantBaseValue, false)
+						fire(if _ToggleState then self.Active else variantBaseValue, false)
 					end
 
-					if keyEnum == _ActiveMainKey then
-						_ActiveMainKey = nil
+					if bindName == _ActiveBindName then
+						table.clear(activeBindsCounted)
+						_ActiveBindCount = 0
+						_ActiveBindName = nil
+						_ActiveMainKey = Enum.KeyCode.None
 						tryConsumeBuffer()
 					end
 
@@ -499,7 +516,7 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 						return
 					end
 
-					fire(variant, true)
+					fire(variant, pressed)
 
 					if self.Cooldown > 0 then
 						_CooldownUntil = now + self.Cooldown
@@ -509,7 +526,9 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 				end
 			end)
 		end
-	end)
+	end
+
+	local childAddedConn: RBXScriptConnection? = InputContext.ChildAdded:Connect(connectAction)
 
 	local childRemovedConn: RBXScriptConnection? = InputContext.ChildRemoved:Connect(function(child)
 		if stateConnections[child.Name] then
@@ -518,13 +537,11 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 		end
 	end)
 
-	local _, InputBinding = instanceSetup(MainName, InputType, InputContext)
-
 	local rebuilding = false
 	local destroyed = false
 
 	local function rebuild()
-		if rebuilding or destroyed then return end
+		if rebuilding or destroyed or not InputContext then return end
 		rebuilding = true
 
 		local isEqual, differences = BindUtils.CheckDifferences(_PrevBinds, self.Binds)
@@ -534,24 +551,42 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 			for _, diff in diffs do
 				if diff.ChangeType == "Added" then
 					local _, binding = instanceSetup(diff.BindName, InputType, InputContext)
-					binding.KeyCode = diff.NewKeyCode or Enum.KeyCode.Unknown
-					binding.Name = getNameForBinding(binding.KeyCode).."Binding"
-					binding.PrimaryModifier = diff.NewModifiers.PrimaryModifier
-					binding.SecondaryModifier = diff.NewModifiers.SecondaryModifier
+					if diff.BindName == "UIButton" then
+						binding.UIButton = diff.UIButton
+						binding.UIModifier = diff.UIModifier
+					else
+						binding.KeyCode = diff.NewKeyCode or Enum.KeyCode.None
+						binding.Name = getNameForBinding(binding.KeyCode) .. "Binding"
+						binding.PrimaryModifier = diff.NewModifiers.PrimaryModifier
+						binding.SecondaryModifier = diff.NewModifiers.SecondaryModifier
+					end
+					binding.DisplayName = diff.DisplayName or ""
+					if diff.DisplayImage then
+						binding.DisplayImage = diff.DisplayImage
+					end
+					binding.Type = diff.BindingType or Enum.InputBindingType.Automatic
+					applyBindingProperties(binding)
 
 				elseif diff.ChangeType == "Modified" then
 					local action = InputContext:FindFirstChild(diff.BindName)
-					if action then
+					if action and action:IsA("InputAction") then
 						local binding = action:FindFirstChildOfClass("InputBinding")
-
 						if binding then
-							if diff.NewKeyCode then
-								binding.KeyCode = diff.NewKeyCode
-								binding.Name = getNameForBinding(binding.KeyCode).."Binding"
+							if diff.BindName == "UIButton" then
+								binding.UIButton = diff.UIButton
+								binding.UIModifier = diff.UIModifier
+							else
+								if diff.NewKeyCode then
+									binding.KeyCode = diff.NewKeyCode
+									binding.Name = getNameForBinding(binding.KeyCode) .. "Binding"
+								end
+								binding.PrimaryModifier = diff.NewModifiers.PrimaryModifier
+								binding.SecondaryModifier = diff.NewModifiers.SecondaryModifier
 							end
-
-							binding.PrimaryModifier = diff.NewModifiers.PrimaryModifier
-							binding.SecondaryModifier = diff.NewModifiers.SecondaryModifier
+							if diff.DisplayName ~= nil then binding.DisplayName = diff.DisplayName end
+							if diff.DisplayImage ~= nil then binding.DisplayImage = diff.DisplayImage end
+							if diff.BindingType ~= nil then binding.Type = diff.BindingType end
+							applyBindingProperties(binding)
 						end
 					end
 
@@ -567,9 +602,24 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 		rebuilding = false
 	end
 
-	rebuild()
+	local _, mainBinding = instanceSetup(MainName, InputType, InputContext)
+	mainBinding.Name = "InputBinding"
+	mainBinding.KeyCode = Enum.KeyCode.None
+	mainBinding.PrimaryModifier = Enum.KeyCode.None
+	mainBinding.SecondaryModifier = Enum.KeyCode.None
+	mainBinding.DisplayName = ""
+	mainBinding.Type = Enum.InputBindingType.Automatic
+	applyBindingProperties(mainBinding)
 
-	function self:Fire(active, pressed)
+	local _, uiBinding = instanceSetup("UIButton", InputType, InputContext)
+	uiBinding.Name = "InputBinding"
+	uiBinding.UIButton = nil
+	uiBinding.UIModifier = nil
+	uiBinding.DisplayName = ""
+	uiBinding.Type = Enum.InputBindingType.Automatic
+	applyBindingProperties(uiBinding)
+
+	function self:Fire(active: variant, pressed: boolean)
 		fire(active, pressed)
 	end
 
@@ -578,10 +628,31 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 	end
 
 	function self:SetUIButton(button: GuiButton?)
-		if InputType == Enum.InputActionType.Bool then
-			self.UIButton = button
-			InputBinding.UIButton = self.UIButton :: GuiButton
+		self.UIButton = button
+		BindUtils.SetUIButton(self.Binds, "UIButton", button)
+		local uiAction = InputContext and InputContext:FindFirstChild("UIButton")
+		if uiAction then
+			local binding = uiAction:FindFirstChildOfClass("InputBinding")
+			if binding then
+				binding.UIButton = button
+			end
 		end
+	end
+
+	function self:SetUIModifier(button: GuiButton?)
+		self.UIModifier = button
+		BindUtils.SetUIModifier(self.Binds, "UIButton", button)
+		local uiAction = InputContext and InputContext:FindFirstChild("UIButton")
+		if uiAction then
+			local binding = uiAction:FindFirstChildOfClass("InputBinding")
+			if binding then
+				binding.UIModifier = button
+			end
+		end
+	end
+
+	function self:GetUIModifier(): GuiButton?
+		return self.UIModifier
 	end
 
 	function self:SetCooldown(cooldown: number)
@@ -597,12 +668,8 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 	end
 
 	function self:SetTapActivation(requiredTaps: number, tapWindow: number)
-		requiredTaps = math.max(1, requiredTaps)
-		tapWindow = math.max(0, tapWindow)
-
-		self.TapRequired = requiredTaps
-		self.TapWindow = tapWindow
-
+		self.TapRequired = math.max(1, requiredTaps)
+		self.TapWindow = math.max(0, tapWindow)
 		_TapCount = 0
 		_LastTapTime = 0
 	end
@@ -615,34 +682,44 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 			self.Ended:Fire(variantBaseValue)
 		end
 
-		InputContext.Enabled = self.Enabled
+		if InputContext then
+			InputContext.Enabled = enabled
+		end
 	end
 
-	function self:IsEnabled()
+	function self:IsEnabled(): boolean
 		return self.Enabled
 	end
 
-	function self:SetPriority(number)
-		self.Priority = number
-		InputContext.Priority = self.Priority
+	function self:IsEnable(): boolean
+		return self.Enabled
 	end
 
-	function self:GetPriority()
+	function self:SetPriority(priority: number)
+		self.Priority = priority
+		if InputContext then
+			InputContext.Priority = priority
+		end
+	end
+
+	function self:GetPriority(): number
 		return self.Priority
 	end
 
-	function self:SetSink(boolean)
-		self.Sink = boolean
-		InputContext.Sink = self.Sink
+	function self:SetSink(sink: boolean)
+		self.Sink = sink
+		if InputContext then
+			InputContext.Sink = sink
+		end
 	end
 
-	function self:GetSink()
+	function self:GetSink(): boolean
 		return self.Sink
 	end
 
 	function self:SetScale(scale: number)
 		self.Scale = scale
-		InputBinding.Scale = self.Scale
+		updateAllBindingsProperties()
 	end
 
 	function self:GetScale(): number
@@ -651,11 +728,7 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 
 	function self:SetVectorScale(vector: Vector2 | Vector3)
 		self.VectorScale = vector
-		if InputType == Enum.InputActionType.Direction2D then
-			InputBinding.Vector2Scale = typeof(vector) == "Vector2" and vector or Vector2.one
-		elseif InputType == Enum.InputActionType.Direction3D then
-			InputBinding.Vector3Scale = typeof(vector) == "Vector3" and vector or Vector3.one
-		end
+		updateAllBindingsProperties()
 	end
 
 	function self:GetVectorScale(): Vector2 | Vector3
@@ -668,7 +741,7 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 
 	function self:SetResponseCurve(curve: number)
 		self.ResponseCurve = curve
-		InputBinding.ResponseCurve = self.ResponseCurve
+		updateAllBindingsProperties()
 	end
 
 	function self:GetResponseCurve(): number
@@ -677,87 +750,89 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 
 	function self:SetPressedThreshold(threshold: number)
 		self.PressedThreshold = threshold
-		InputBinding.PressedThreshold = self.PressedThreshold
+		updateAllBindingsProperties()
 	end
 
-	function self:GetPressedThreshold()
+	function self:GetPressedThreshold(): number
 		return self.PressedThreshold
 	end
 
 	function self:SetReleasedThreshold(threshold: number)
 		self.ReleasedThreshold = threshold
-		InputBinding.ReleasedThreshold = self.ReleasedThreshold
+		updateAllBindingsProperties()
 	end
 
-	function self:GetReleasedThreshold()
+	function self:GetReleasedThreshold(): number
 		return self.ReleasedThreshold
 	end
 
-	function self:SetPointerIndex(index)
+	function self:SetPointerIndex(index: number)
 		self.PointerIndex = index
-		InputBinding.PointerIndex = self.PointerIndex
+		updateAllBindingsProperties()
 	end
 
-	function self:GetPointerIndex()
+	function self:GetPointerIndex(): number
 		return self.PointerIndex
 	end
 
-	function self:SetClampMagnitudeToOne(bool) 
+	function self:SetClampMagnitudeToOne(bool: boolean)
 		self.ClampMagnitudeToOne = bool
-		InputBinding.ClampMagnitudeToOne = self.ClampMagnitudeToOne
+		updateAllBindingsProperties()
 	end
 
-	function self:GetClampMagnitudeToOne()
+	function self:GetClampMagnitudeToOne(): boolean
 		return self.ClampMagnitudeToOne
 	end
 
 	function self:SetInputBufferTime(t: number)
-		t = math.max(0, t)
-		self.InputBufferTime = t
+		self.InputBufferTime = math.max(0, t)
 	end
 
 	function self:GetState(): variant
 		return self.Active
 	end
 
-	function self:GetCooldownRemaining()
+	function self:GetCooldownRemaining(): number
 		local now = time()
 		return math.max(0, _CooldownUntil - now)
 	end
 
-	function self:IsBuffered()
+	function self:IsBuffered(): boolean
 		return _Buffered
 	end
 
 	function self:ResetBuffer()
 		_Buffered = false
 		_BufferedTime = 0
-		_BufferedKey = nil
+		_BufferedBindName = nil
+		_BufferedKey = Enum.KeyCode.None
 		_BufferedVariant = nil
 	end
 
-	function self:GetBufferedVariant()
+	function self:GetBufferedVariant(): variant?
 		return _BufferedVariant
 	end
 
-	function self:GetBufferedKey()
+	function self:GetBufferedKey(): Enum.KeyCode
 		return _BufferedKey
 	end
 
-	function self:GetActiveBindCount()
+	function self:GetActiveBindCount(): number
 		return _ActiveBindCount
 	end
 
-	function self:GetToggleState()
+	function self:GetToggleState(): boolean
 		return _ToggleState
 	end
 
-	function self:GetActiveMainKey()
+	function self:GetActiveMainKey(): Enum.KeyCode
 		return _ActiveMainKey
 	end
 
 	function self:ClearBinds()
 		BindUtils.ResetBinds(self.Binds)
+		self.UIButton = nil
+		self.UIModifier = nil
 		rebuild()
 	end
 
@@ -765,50 +840,90 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 		return BindUtils.Clone(self.Binds)
 	end
 
-	function self:AddBind(mainKey: supposedKeyCode, PrimaryModifier: supposedKeyCode?, SecondaryModifier: supposedKeyCode?)
-		mainKey = convertStrToEnumKeycode(mainKey)
-		PrimaryModifier = convertStrToEnumKeycode(PrimaryModifier)
-		SecondaryModifier = convertStrToEnumKeycode(SecondaryModifier)
+	function self:AddBind(
+		mainKey: supposedKeyCode,
+		PrimaryModifier: supposedKeyCode?,
+		SecondaryModifier: supposedKeyCode?,
+		UIButton: GuiButton?,
+		UIModifier: GuiButton?,
+		DisplayName: string?,
+		DisplayImage: Content?,
+		BindingType: Enum.InputBindingType?
+	)
+		local keyEnum = convertStrToEnumKeycode(mainKey)
+		local pmEnum = convertStrToEnumKeycode(PrimaryModifier)
+		local smEnum = convertStrToEnumKeycode(SecondaryModifier)
 
-		if mainKey == Enum.KeyCode.Unknown then return end
+		if UIButton then
+			self:SetUIButton(UIButton)
+		end
+		if UIModifier then
+			self:SetUIModifier(UIModifier)
+		end
+
+		if keyEnum == Enum.KeyCode.None then return end
 
 		for bindName, bind in self.Binds do
-			if bind.KeyCode == mainKey then
-				BindUtils.SetModifiers(self.Binds, bindName, PrimaryModifier, SecondaryModifier)
+			if bindName ~= "UIButton" and bind.KeyCode == keyEnum then
+				BindUtils.SetModifiers(self.Binds, bindName, pmEnum, smEnum)
+				if DisplayName ~= nil then BindUtils.SetDisplayName(self.Binds, bindName, DisplayName) end
+				if DisplayImage ~= nil then BindUtils.SetDisplayImage(self.Binds, bindName, DisplayImage) end
+				if BindingType ~= nil then BindUtils.SetBindingType(self.Binds, bindName, BindingType) end
 				rebuild()
 				return
 			end
 		end
 
 		local mainBind = self.Binds[MainName]
-
-		if mainBind and mainBind.KeyCode == Enum.KeyCode.Unknown then
-			BindUtils.SetKeyCode(self.Binds, MainName, mainKey)
-			BindUtils.SetModifiers(self.Binds, MainName, PrimaryModifier, SecondaryModifier)
+		if mainBind and mainBind.KeyCode == Enum.KeyCode.None then
+			BindUtils.SetKeyCode(self.Binds, MainName, keyEnum)
+			BindUtils.SetModifiers(self.Binds, MainName, pmEnum, smEnum)
+			if DisplayName ~= nil then BindUtils.SetDisplayName(self.Binds, MainName, DisplayName) end
+			if DisplayImage ~= nil then BindUtils.SetDisplayImage(self.Binds, MainName, DisplayImage) end
+			if BindingType ~= nil then BindUtils.SetBindingType(self.Binds, MainName, BindingType) end
 			rebuild()
 			return
 		end
 
 		local index = 1
 		local bindName
-
 		repeat
 			bindName = `AltAction{index}`
 			index += 1
 		until not self.Binds[bindName]
 
-		BindUtils.AddBind(self.Binds, bindName, mainKey, PrimaryModifier, SecondaryModifier)
+		BindUtils.AddBind(
+			self.Binds,
+			bindName,
+			keyEnum,
+			pmEnum,
+			smEnum,
+			nil,
+			nil,
+			DisplayName,
+			DisplayImage,
+			BindingType
+		)
 		rebuild()
-		return
-	end
-	
-	function self:SetAllBinds(Binds: Binds)
-		self.Binds = Binds
 	end
 
-	function self:SetBind(mainKey: supposedKeyCode, PrimaryModifier: supposedKeyCode?, SecondaryModifier: supposedKeyCode?)
+	function self:SetAllBinds(Binds: Binds)
+		self.Binds = Binds
+		rebuild()
+	end
+
+	function self:SetBind(
+		mainKey: supposedKeyCode,
+		PrimaryModifier: supposedKeyCode?,
+		SecondaryModifier: supposedKeyCode?,
+		UIButton: GuiButton?,
+		UIModifier: GuiButton?,
+		DisplayName: string?,
+		DisplayImage: Content?,
+		BindingType: Enum.InputBindingType?
+	)
 		self:ClearBinds()
-		self:AddBind(mainKey, PrimaryModifier, SecondaryModifier)
+		self:AddBind(mainKey, PrimaryModifier, SecondaryModifier, UIButton, UIModifier, DisplayName, DisplayImage, BindingType)
 	end
 
 	function self:RemoveBind(mainKey: supposedKeyCode, PrimaryModifier: supposedKeyCode?, SecondaryModifier: supposedKeyCode?)
@@ -816,12 +931,10 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 		local primary: Enum.KeyCode = convertStrToEnumKeycode(PrimaryModifier)
 		local secondary: Enum.KeyCode = convertStrToEnumKeycode(SecondaryModifier)
 
-		if keyCode == Enum.KeyCode.Unknown then return end
+		if keyCode == Enum.KeyCode.None then return end
 
 		for bindName, bind in self.Binds do
-			if bind.KeyCode ~= keyCode then
-				continue
-			end
+			if bindName == "UIButton" or bind.KeyCode ~= keyCode then continue end
 
 			local equal = BindUtils.CheckDifferences(
 				{ X = { KeyCode = keyCode, PrimaryModifier = bind.PrimaryModifier, SecondaryModifier = bind.SecondaryModifier } },
@@ -830,9 +943,11 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 
 			if not equal then continue end
 
-			if bindName == "MainAction" then
-				BindUtils.ResetKeyCode(self.Binds, "MainAction")
-				BindUtils.ClearModifiers(self.Binds, "MainAction")
+			if bindName == MainName then
+				BindUtils.ResetKeyCode(self.Binds, MainName)
+				BindUtils.ClearModifiers(self.Binds, MainName)
+				BindUtils.SetDisplayName(self.Binds, MainName, "")
+				BindUtils.SetDisplayImage(self.Binds, MainName, nil)
 			else
 				BindUtils.RemoveBind(self.Binds, bindName)
 			end
@@ -844,20 +959,19 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 
 	function self:EditBind(
 		oldMain: supposedKeyCode,
-		oldMods: {PrimaryModifier: supposedKeyCode?, SecondaryModifier: supposedKeyCode? },
+		oldMods: { PrimaryModifier: supposedKeyCode?, SecondaryModifier: supposedKeyCode? },
 		newMain: supposedKeyCode,
-		newMods: {PrimaryModifier: supposedKeyCode?, SecondaryModifier: supposedKeyCode? }
+		newMods: { PrimaryModifier: supposedKeyCode?, SecondaryModifier: supposedKeyCode? }
 	)
-
 		local oldKeyCode: Enum.KeyCode = convertStrToEnumKeycode(oldMain)
 		local newKeyCode: Enum.KeyCode = convertStrToEnumKeycode(newMain)
 		local oldPrimary: Enum.KeyCode = convertStrToEnumKeycode(oldMods.PrimaryModifier)
 		local oldSecondary: Enum.KeyCode = convertStrToEnumKeycode(oldMods.SecondaryModifier)
 
-		if oldKeyCode == Enum.KeyCode.Unknown or newKeyCode == Enum.KeyCode.Unknown then return end
+		if oldKeyCode == Enum.KeyCode.None or newKeyCode == Enum.KeyCode.None then return end
 
 		for bindName, bind in self.Binds do
-			if bind.KeyCode ~= oldKeyCode then continue end
+			if bindName == "UIButton" or bind.KeyCode ~= oldKeyCode then continue end
 
 			local equal = BindUtils.CheckDifferences(
 				{ X = { KeyCode = oldKeyCode, PrimaryModifier = bind.PrimaryModifier, SecondaryModifier = bind.SecondaryModifier } },
@@ -868,73 +982,268 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 
 			BindUtils.SetKeyCode(self.Binds, bindName, newKeyCode)
 			BindUtils.SetModifiers(self.Binds, bindName, newMods.PrimaryModifier, newMods.SecondaryModifier)
-
 			rebuild()
 			return
 		end
 	end
 
-	function self:SetDisplayName(mainKey: supposedKeyCode, displayName: string)
+	function self:SetDisplayName(mainKey: supposedKeyCode, displayName: string): boolean
 		local keyCode = convertStrToEnumKeycode(mainKey)
-		if keyCode == Enum.KeyCode.Unknown then return false end
-
 		local bindName = getBindNameFromKeyCode(keyCode, self.Binds)
 		if not bindName then return false end
 
-		local action = InputContext and InputContext:FindFirstChild(bindName)
-		if not action or not action:IsA("InputAction") then return false end
+		BindUtils.SetDisplayName(self.Binds, bindName, displayName)
 
-		action:SetAttribute("CustomName", displayName)
+		local action = InputContext and InputContext:FindFirstChild(bindName)
+		if action and action:IsA("InputAction") then
+			action:SetAttribute("CustomName", displayName)
+			local binding = action:FindFirstChildOfClass("InputBinding")
+			if binding then
+				binding.DisplayName = displayName
+			end
+		end
+
 		return true
 	end
 
-	function self:GetDisplayName(mainKey: supposedKeyCode)
+	function self:GetDisplayName(mainKey: supposedKeyCode): string?
 		local keyCode = convertStrToEnumKeycode(mainKey)
-		if keyCode == Enum.KeyCode.Unknown then return nil end
-
 		local bindName = getBindNameFromKeyCode(keyCode, self.Binds)
 		if not bindName then return nil end
 
-		local action = InputContext and InputContext:FindFirstChild(bindName)
-		if not action or not action:IsA("InputAction") then return nil end
-
-		local displayName = action:GetAttribute("CustomName")
-		if typeof(displayName) == "string" then
-			return displayName
+		local bind = self.Binds[bindName]
+		if bind and bind.DisplayName and bind.DisplayName ~= "" then
+			return bind.DisplayName
 		end
 
-		if InputContext then
-			return InputContext.Name
+		local action = InputContext and InputContext:FindFirstChild(bindName)
+		if action and action:IsA("InputAction") then
+			local binding = action:FindFirstChildOfClass("InputBinding")
+			if binding and binding.DisplayName ~= "" then
+				return binding.DisplayName
+			end
+			local customName = action:GetAttribute("CustomName")
+			if typeof(customName) == "string" and customName ~= "" then
+				return customName
+			end
+		end
+
+		return self.Name
+	end
+
+	function self:SetDisplayImage(mainKey: supposedKeyCode, displayImage: Content): boolean
+		local keyCode = convertStrToEnumKeycode(mainKey)
+		local bindName = getBindNameFromKeyCode(keyCode, self.Binds)
+		if not bindName then return false end
+
+		BindUtils.SetDisplayImage(self.Binds, bindName, displayImage)
+
+		local action = InputContext and InputContext:FindFirstChild(bindName)
+		if action and action:IsA("InputAction") then
+			local binding = action:FindFirstChildOfClass("InputBinding")
+			if binding then
+				binding.DisplayImage = displayImage
+			end
+		end
+
+		return true
+	end
+
+	function self:GetDisplayImage(mainKey: supposedKeyCode): Content?
+		local keyCode = convertStrToEnumKeycode(mainKey)
+		local bindName = getBindNameFromKeyCode(keyCode, self.Binds)
+		if not bindName then return nil end
+
+		local bind = self.Binds[bindName]
+		if bind and bind.DisplayImage ~= nil then
+			return bind.DisplayImage
+		end
+
+		local action = InputContext and InputContext:FindFirstChild(bindName)
+		if action and action:IsA("InputAction") then
+			local binding = action:FindFirstChildOfClass("InputBinding")
+			if binding then
+				return binding.DisplayImage
+			end
 		end
 
 		return nil
 	end
 
-	function self:SetCompositeDirections(Up: supposedKeyCode?, Down: supposedKeyCode?, Left: supposedKeyCode?, Right: supposedKeyCode?, Forward: supposedKeyCode?, Backward: supposedKeyCode?)
+	function self:SetBindingType(mainKey: supposedKeyCode, bindingType: Enum.InputBindingType): boolean
+		local keyCode = convertStrToEnumKeycode(mainKey)
+		local bindName = getBindNameFromKeyCode(keyCode, self.Binds)
+		if not bindName then return false end
+
+		BindUtils.SetBindingType(self.Binds, bindName, bindingType)
+
+		local action = InputContext and InputContext:FindFirstChild(bindName)
+		if action and action:IsA("InputAction") then
+			local binding = action:FindFirstChildOfClass("InputBinding")
+			if binding then
+				binding.Type = bindingType
+			end
+		end
+
+		return true
+	end
+
+	function self:GetBindingType(mainKey: supposedKeyCode): Enum.InputBindingType?
+		local keyCode = convertStrToEnumKeycode(mainKey)
+		local bindName = getBindNameFromKeyCode(keyCode, self.Binds)
+		if not bindName then return nil end
+
+		local bind = self.Binds[bindName]
+		if bind and bind.Type ~= nil then
+			return bind.Type
+		end
+
+		local action = InputContext and InputContext:FindFirstChild(bindName)
+		if action and action:IsA("InputAction") then
+			local binding = action:FindFirstChildOfClass("InputBinding")
+			if binding then
+				return binding.Type
+			end
+		end
+
+		return Enum.InputBindingType.Automatic
+	end
+
+	function self:SetCompositeDirections(
+		up: supposedKeyCode?,
+		down: supposedKeyCode?,
+		left: supposedKeyCode?,
+		right: supposedKeyCode?,
+		forward: supposedKeyCode?,
+		backward: supposedKeyCode?
+	)
 		if InputType == Enum.InputActionType.Bool or InputType == Enum.InputActionType.ViewportPosition then return end
-		InputBinding.Up = convertStrToEnumKeycode(Up)
-		InputBinding.Down = convertStrToEnumKeycode(Down)
-		InputBinding.Left = convertStrToEnumKeycode(Left)
-		InputBinding.Right = convertStrToEnumKeycode(Right)
-		InputBinding.Forward = convertStrToEnumKeycode(Forward)
-		InputBinding.Backward = convertStrToEnumKeycode(Backward)
+
+		local mainAction = InputContext and InputContext:FindFirstChild(MainName)
+		local targetBinding = mainAction and mainAction:FindFirstChildOfClass("InputBinding")
+		if not targetBinding then return end
+
+		targetBinding.Up = convertStrToEnumKeycode(up)
+		targetBinding.Down = convertStrToEnumKeycode(down)
+		targetBinding.Left = convertStrToEnumKeycode(left)
+		targetBinding.Right = convertStrToEnumKeycode(right)
+		targetBinding.Forward = convertStrToEnumKeycode(forward)
+		targetBinding.Backward = convertStrToEnumKeycode(backward)
+	end
+
+	function self:GetCompositeDirections(): {
+		Up: Enum.KeyCode,
+		Down: Enum.KeyCode,
+		Left: Enum.KeyCode,
+		Right: Enum.KeyCode,
+		Forward: Enum.KeyCode,
+		Backward: Enum.KeyCode,
+		}
+		local mainAction = InputContext and InputContext:FindFirstChild(MainName)
+		local targetBinding = mainAction and mainAction:FindFirstChildOfClass("InputBinding")
+		if not targetBinding then
+			return {
+				Up = Enum.KeyCode.None,
+				Down = Enum.KeyCode.None,
+				Left = Enum.KeyCode.None,
+				Right = Enum.KeyCode.None,
+				Forward = Enum.KeyCode.None,
+				Backward = Enum.KeyCode.None,
+			}
+		end
+
+		return {
+			Up = targetBinding.Up or Enum.KeyCode.None,
+			Down = targetBinding.Down or Enum.KeyCode.None,
+			Left = targetBinding.Left or Enum.KeyCode.None,
+			Right = targetBinding.Right or Enum.KeyCode.None,
+			Forward = targetBinding.Forward or Enum.KeyCode.None,
+			Backward = targetBinding.Backward or Enum.KeyCode.None,
+		}
 	end
 
 	function self:SetCompositeModifiers(PrimaryModifier: supposedKeyCode?, SecondaryModifier: supposedKeyCode?)
 		if InputType == Enum.InputActionType.Bool or InputType == Enum.InputActionType.ViewportPosition then return end
-		InputBinding.PrimaryModifier = convertStrToEnumKeycode(PrimaryModifier)
-		InputBinding.SecondaryModifier = convertStrToEnumKeycode(SecondaryModifier)
+
+		local mainAction = InputContext and InputContext:FindFirstChild(MainName)
+		local targetBinding = mainAction and mainAction:FindFirstChildOfClass("InputBinding")
+		if not targetBinding then return end
+
+		targetBinding.PrimaryModifier = convertStrToEnumKeycode(PrimaryModifier)
+		targetBinding.SecondaryModifier = convertStrToEnumKeycode(SecondaryModifier)
 	end
 
-	function self:Destroy()	
+	function self:GetCompositeModifiers(): {
+		PrimaryModifier: Enum.KeyCode,
+		SecondaryModifier: Enum.KeyCode,
+		}
+		local mainAction = InputContext and InputContext:FindFirstChild(MainName)
+		local targetBinding = mainAction and mainAction:FindFirstChildOfClass("InputBinding")
+		if not targetBinding then
+			return {
+				PrimaryModifier = Enum.KeyCode.None,
+				SecondaryModifier = Enum.KeyCode.None,
+			}
+		end
+
+		return {
+			PrimaryModifier = targetBinding.PrimaryModifier or Enum.KeyCode.None,
+			SecondaryModifier = targetBinding.SecondaryModifier or Enum.KeyCode.None,
+		}
+	end
+
+	function self:GetPreferredBinding(): InputBinding?
+		if not InputContext then return nil end
+		local activeAction = InputContext:FindFirstChild(_ActiveBindName or MainName)
+		if activeAction and activeAction:IsA("InputAction") then
+			return activeAction.PreferredBinding or activeAction:FindFirstChildOfClass("InputBinding")
+		end
+		return nil
+	end
+
+	function self:GetInputAction(): InputAction?
+		local mainAction = InputContext and InputContext:FindFirstChild(MainName)
+		if mainAction and mainAction:IsA("InputAction") then
+			return mainAction
+		end
+		return (InputContext and InputContext:FindFirstChildOfClass("InputAction"))
+	end
+
+	function self:GetInputContext(): InputContext
+		return InputContext
+	end
+
+	function self:GetInputBinding(keyOrName: (supposedKeyCode | string)?): InputBinding?
+		if not InputContext then return nil end
+		local bindName = getBindNameFromKeyOrName(keyOrName, self.Binds)
+		if bindName then
+			local action = InputContext:FindFirstChild(bindName)
+			if action and action:IsA("InputAction") then
+				return action:FindFirstChildOfClass("InputBinding")
+			end
+		end
+		return nil
+	end
+
+	function self:CreateActionLabel(parent: Instance?): GuiObject?
+		local mainAction = self:GetInputAction()
+		if not mainAction then return nil end
+		local ok, label = pcall(function()
+			local lbl = Instance.new("InputActionLabel")
+			lbl.InputAction = mainAction
+			lbl.Parent = parent
+			return lbl
+		end)
+		return if ok then label else nil
+	end
+
+	function self:Destroy(): boolean
 		if destroyed then return false end
 		destroyed = true
 
-		for conn in stateConnections do
-			stateConnections[conn]:Disconnect()
-			stateConnections[conn] = nil
+		for connName, conn in stateConnections do
+			conn:Disconnect()
 		end
-
 		table.clear(stateConnections)
 
 		if childAddedConn then
@@ -955,9 +1264,7 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 			for _, child in InputContext:GetChildren() do
 				child:Destroy()
 			end
-
 			InputContext:Destroy()
-			InputContext = nil
 		end
 
 		self.Activated:DisconnectAll()
@@ -981,10 +1288,12 @@ end
 function IIAS.get(name: string): BindingObject?
 	return activeBinds[name]
 end
+IIAS.Get = IIAS.get
 
-function IIAS.getAll(): {[string]: BindingObject}
+function IIAS.getAll(): { [string]: BindingObject }
 	return activeBinds
 end
+IIAS.GetAll = IIAS.getAll
 
 function IIAS.newContext(name: string)
 	if not IIAS.contextedBinds[name] then
@@ -995,7 +1304,7 @@ function IIAS.newContext(name: string)
 	end
 end
 
-function IIAS.getContext(name: string)
+function IIAS.getContext(name: string): Context
 	return IIAS.contextedBinds[name]
 end
 
@@ -1022,7 +1331,7 @@ function IIAS.enableContext(name: string, enabled: boolean)
 	context.Enabled = enabled
 end
 
-function IIAS.isContextEnabled(name: string)
+function IIAS.isContextEnabled(name: string): boolean
 	if not IIAS.contextedBinds[name] then return false end
 	return IIAS.contextedBinds[name].Enabled
 end
