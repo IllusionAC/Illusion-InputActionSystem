@@ -205,6 +205,8 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 
 	local activeBindsCounted: { [string]: boolean } = {}
 	local blockedPresses: { [string]: boolean } = {}
+	local uiButtonDestroyConn: RBXScriptConnection? = nil
+	local uiModifierDestroyConn: RBXScriptConnection? = nil
 
 	local function fire(value: variant, pressed: boolean)
 		if not self.Enabled then return end
@@ -222,7 +224,7 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 	local function tryConsumeBuffer(): boolean
 		if not _Buffered then return false end
 
-		local now = time()
+		local now = os.clock()
 		if (now - _BufferedTime) > self.InputBufferTime then
 			_Buffered = false
 			_BufferedBindName = nil
@@ -268,7 +270,7 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 			else
 				_ToggleState = not _ToggleState
 				fire(_ToggleState, true)
-				if self.Cooldown > 0 then _CooldownUntil = now + self.Cooldown end
+				if _ToggleState and self.Cooldown > 0 then _CooldownUntil = now + self.Cooldown end
 				return true
 			end
 		else
@@ -280,7 +282,7 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 			else
 				_ToggleState = not _ToggleState
 				fire(if _ToggleState then toFire else variantBaseValue, true)
-				if self.Cooldown > 0 then _CooldownUntil = now + self.Cooldown end
+				if _ToggleState and self.Cooldown > 0 then _CooldownUntil = now + self.Cooldown end
 				return true
 			end
 		end
@@ -325,7 +327,7 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 				local bindName = child.Name
 				local keyEnum = if bindName ~= "UIButton" then inputBinding.KeyCode else Enum.KeyCode.None
 
-				local now = time()
+				local now = os.clock()
 
 				if InputType == Enum.InputActionType.Bool then
 					if pressed then
@@ -353,6 +355,7 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 						end
 
 						if self.Cooldown > 0 and now < _CooldownUntil then
+							_TapCount = 0
 							fire(false, true)
 							blockedPresses[bindName] = true
 							return
@@ -369,13 +372,15 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 
 						if self.Hold then
 							fire(true, true)
+							if self.Cooldown > 0 then
+								_CooldownUntil = now + self.Cooldown
+							end
 						else
 							_ToggleState = not _ToggleState
 							fire(_ToggleState, true)
-						end
-
-						if self.Cooldown > 0 then
-							_CooldownUntil = now + self.Cooldown
+							if _ToggleState and self.Cooldown > 0 then
+								_CooldownUntil = now + self.Cooldown
+							end
 						end
 
 						_TapCount = 0
@@ -445,6 +450,7 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 						end
 
 						if self.Cooldown > 0 and now < _CooldownUntil then
+							_TapCount = 0
 							fire(variantBaseValue, true)
 							blockedPresses[bindName] = true
 							return
@@ -461,13 +467,15 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 
 						if self.Hold then
 							fire(variant, true)
+							if self.Cooldown > 0 then
+								_CooldownUntil = now + self.Cooldown
+							end
 						else
 							_ToggleState = not _ToggleState
 							fire(if _ToggleState then variant else variantBaseValue, true)
-						end
-
-						if self.Cooldown > 0 then
-							_CooldownUntil = now + self.Cooldown
+							if _ToggleState and self.Cooldown > 0 then
+								_CooldownUntil = now + self.Cooldown
+							end
 						end
 
 						_TapCount = 0
@@ -518,7 +526,7 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 
 					fire(variant, pressed)
 
-					if self.Cooldown > 0 then
+					if pressed and self.Cooldown > 0 then
 						_CooldownUntil = now + self.Cooldown
 					end
 
@@ -628,6 +636,11 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 	end
 
 	function self:SetUIButton(button: GuiButton?)
+		if uiButtonDestroyConn then
+			uiButtonDestroyConn:Disconnect()
+			uiButtonDestroyConn = nil
+		end
+
 		self.UIButton = button
 		BindUtils.SetUIButton(self.Binds, "UIButton", button)
 		local uiAction = InputContext and InputContext:FindFirstChild("UIButton")
@@ -637,9 +650,28 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 				binding.UIButton = button
 			end
 		end
+
+		if button then
+			uiButtonDestroyConn = button.Destroying:Connect(function()
+				if _ActiveBindName == "UIButton" then
+					table.clear(activeBindsCounted)
+					_ActiveBindCount = 0
+					_ActiveBindName = nil
+					_ActiveMainKey = Enum.KeyCode.None
+					_ToggleState = false
+					fire(variantBaseValue, false)
+				end
+				self:SetUIButton(nil)
+			end)
+		end
 	end
 
 	function self:SetUIModifier(button: GuiButton?)
+		if uiModifierDestroyConn then
+			uiModifierDestroyConn:Disconnect()
+			uiModifierDestroyConn = nil
+		end
+
 		self.UIModifier = button
 		BindUtils.SetUIModifier(self.Binds, "UIButton", button)
 		local uiAction = InputContext and InputContext:FindFirstChild("UIButton")
@@ -648,6 +680,12 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 			if binding then
 				binding.UIModifier = button
 			end
+		end
+
+		if button then
+			uiModifierDestroyConn = button.Destroying:Connect(function()
+				self:SetUIModifier(nil)
+			end)
 		end
 	end
 
@@ -793,7 +831,7 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 	end
 
 	function self:GetCooldownRemaining(): number
-		local now = time()
+		local now = os.clock()
 		return math.max(0, _CooldownUntil - now)
 	end
 
@@ -864,7 +902,7 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 		if keyEnum == Enum.KeyCode.None then return end
 
 		for bindName, bind in self.Binds do
-			if bindName ~= "UIButton" and bind.KeyCode == keyEnum then
+			if bindName ~= "UIButton" and bind.KeyCode == keyEnum and bind.PrimaryModifier == pmEnum and bind.SecondaryModifier == smEnum then
 				BindUtils.SetModifiers(self.Binds, bindName, pmEnum, smEnum)
 				if DisplayName ~= nil then BindUtils.SetDisplayName(self.Binds, bindName, DisplayName) end
 				if DisplayImage ~= nil then BindUtils.SetDisplayImage(self.Binds, bindName, DisplayImage) end
@@ -1256,6 +1294,16 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 			childRemovedConn = nil
 		end
 
+		if uiButtonDestroyConn then
+			uiButtonDestroyConn:Disconnect()
+			uiButtonDestroyConn = nil
+		end
+
+		if uiModifierDestroyConn then
+			uiModifierDestroyConn:Disconnect()
+			uiModifierDestroyConn = nil
+		end
+
 		for _, context in IIAS.contextedBinds do
 			context.Members[self.Name] = nil
 		end
@@ -1291,7 +1339,7 @@ end
 IIAS.Get = IIAS.get
 
 function IIAS.getAll(): { [string]: BindingObject }
-	return activeBinds
+	return table.clone(activeBinds)
 end
 IIAS.GetAll = IIAS.getAll
 
@@ -1304,8 +1352,13 @@ function IIAS.newContext(name: string)
 	end
 end
 
-function IIAS.getContext(name: string): Context
-	return IIAS.contextedBinds[name]
+function IIAS.getContext(name: string): Context?
+	local ctx = IIAS.contextedBinds[name]
+	if not ctx then return nil end
+	return {
+		Enabled = ctx.Enabled,
+		Members = table.clone(ctx.Members),
+	}
 end
 
 function IIAS.addContext(name: string, ...: BindingObject)

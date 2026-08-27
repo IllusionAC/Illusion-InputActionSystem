@@ -241,7 +241,7 @@ export type IllusionIAS = {
 	GetAll: () -> { [string]: BindingObject },
 	getAll: () -> { [string]: BindingObject },
 	newContext: (name: string) -> (),
-	getContext: (name: string) -> Context,
+	getContext: (name: string) -> Context?,
 	addContext: (name: string, ...BindingObject) -> (),
 	enableContext: (name: string, enabled: boolean) -> (),
 	isContextEnabled: (name: string) -> boolean,
