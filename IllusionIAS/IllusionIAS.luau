@@ -25,8 +25,8 @@ export type IllusionIAS = IAS.IllusionIAS
 export type supposedKeyCode = IAS.supposedKeyCode
 
 local function getBindFolder(): Instance
-	local existing = script:FindFirstChildOfClass("Folder")
-	if existing then return existing end
+	local existing = script:FindFirstChild("BindFolder")
+	if existing and existing:IsA("Folder") then return existing end
 
 	local folder = Instance.new("Folder")
 	folder.Name = "BindFolder"
@@ -262,29 +262,18 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 			_ActiveMainKey = Enum.KeyCode.None
 		end
 
-		if InputType == Enum.InputActionType.Bool then
-			if self.Hold then
-				fire(true, true)
-				if self.Cooldown > 0 then _CooldownUntil = now + self.Cooldown end
-				return true
-			else
-				_ToggleState = not _ToggleState
-				fire(_ToggleState, true)
-				if _ToggleState and self.Cooldown > 0 then _CooldownUntil = now + self.Cooldown end
-				return true
-			end
+		local activeValue = if InputType == Enum.InputActionType.Bool then true else (bufferedVariant or variantBaseValue)
+		local inactiveValue = variantBaseValue
+
+		if self.Hold then
+			fire(activeValue, true)
+			if self.Cooldown > 0 then _CooldownUntil = now + self.Cooldown end
+			return true
 		else
-			local toFire = bufferedVariant or variantBaseValue
-			if self.Hold then
-				fire(toFire, true)
-				if self.Cooldown > 0 then _CooldownUntil = now + self.Cooldown end
-				return true
-			else
-				_ToggleState = not _ToggleState
-				fire(if _ToggleState then toFire else variantBaseValue, true)
-				if _ToggleState and self.Cooldown > 0 then _CooldownUntil = now + self.Cooldown end
-				return true
-			end
+			_ToggleState = not _ToggleState
+			fire(if _ToggleState then activeValue else inactiveValue, true)
+			if _ToggleState and self.Cooldown > 0 then _CooldownUntil = now + self.Cooldown end
+			return true
 		end
 	end
 
@@ -329,7 +318,10 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 
 				local now = os.clock()
 
-				if InputType == Enum.InputActionType.Bool then
+				if InputType ~= Enum.InputActionType.ViewportPosition then
+					local activeValue = if InputType == Enum.InputActionType.Bool then true else variant
+					local inactiveValue = variantBaseValue
+
 					if pressed then
 						if _ActiveBindName ~= nil and _ActiveBindName ~= bindName then
 							if self.InputBufferEnabled then
@@ -337,6 +329,7 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 								_BufferedTime = now
 								_BufferedBindName = bindName
 								_BufferedKey = keyEnum
+								_BufferedVariant = if InputType ~= Enum.InputActionType.Bool then variant else nil
 							end
 							return
 						end
@@ -356,7 +349,7 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 
 						if self.Cooldown > 0 and now < _CooldownUntil then
 							_TapCount = 0
-							fire(false, true)
+							fire(inactiveValue, true)
 							blockedPresses[bindName] = true
 							return
 						end
@@ -371,13 +364,13 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 						end
 
 						if self.Hold then
-							fire(true, true)
+							fire(activeValue, true)
 							if self.Cooldown > 0 then
 								_CooldownUntil = now + self.Cooldown
 							end
 						else
 							_ToggleState = not _ToggleState
-							fire(_ToggleState, true)
+							fire(if _ToggleState then activeValue else inactiveValue, true)
 							if _ToggleState and self.Cooldown > 0 then
 								_CooldownUntil = now + self.Cooldown
 							end
@@ -389,7 +382,7 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 
 					if blockedPresses[bindName] then
 						blockedPresses[bindName] = nil
-						fire(false, false)
+						fire(inactiveValue, false)
 						return
 					end
 
@@ -403,109 +396,14 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 						_ActiveBindName = nil
 						_ActiveMainKey = Enum.KeyCode.None
 						_ToggleState = false
-						fire(false, false)
+						fire(inactiveValue, false)
 
 						tryConsumeBuffer()
 						return
 					end
 
 					if _TapCount == 0 then
-						fire(_ToggleState, false)
-					end
-
-					if bindName == _ActiveBindName then
-						table.clear(activeBindsCounted)
-						_ActiveBindCount = 0
-						_ActiveBindName = nil
-						_ActiveMainKey = Enum.KeyCode.None
-						tryConsumeBuffer()
-					end
-
-					return
-
-				elseif InputType == Enum.InputActionType.Direction1D or InputType == Enum.InputActionType.Direction2D or InputType == Enum.InputActionType.Direction3D then
-					if pressed then
-						if _ActiveBindName ~= nil and _ActiveBindName ~= bindName then
-							if self.InputBufferEnabled then
-								_Buffered = true
-								_BufferedTime = now
-								_BufferedBindName = bindName
-								_BufferedKey = keyEnum
-								_BufferedVariant = variant
-							end
-							return
-						end
-
-						if self.TapRequired > 1 then
-							if now - _LastTapTime > self.TapWindow then
-								_TapCount = 1
-							else
-								_TapCount += 1
-							end
-							_LastTapTime = now
-
-							if _TapCount < self.TapRequired then
-								return
-							end
-						end
-
-						if self.Cooldown > 0 and now < _CooldownUntil then
-							_TapCount = 0
-							fire(variantBaseValue, true)
-							blockedPresses[bindName] = true
-							return
-						end
-
-						_ActiveBindName = bindName
-						activeBindsCounted[bindName] = true
-						_ActiveBindCount = 1
-						if bindName ~= "UIButton" then
-							_ActiveMainKey = keyEnum
-						else
-							_ActiveMainKey = Enum.KeyCode.None
-						end
-
-						if self.Hold then
-							fire(variant, true)
-							if self.Cooldown > 0 then
-								_CooldownUntil = now + self.Cooldown
-							end
-						else
-							_ToggleState = not _ToggleState
-							fire(if _ToggleState then variant else variantBaseValue, true)
-							if _ToggleState and self.Cooldown > 0 then
-								_CooldownUntil = now + self.Cooldown
-							end
-						end
-
-						_TapCount = 0
-						return
-					end
-
-					if blockedPresses[bindName] then
-						blockedPresses[bindName] = nil
-						fire(variantBaseValue, false)
-						return
-					end
-
-					if not activeBindsCounted[bindName] then
-						return
-					end
-
-					if self.Hold then
-						table.clear(activeBindsCounted)
-						_ActiveBindCount = 0
-						_ActiveBindName = nil
-						_ActiveMainKey = Enum.KeyCode.None
-						_ToggleState = false
-						fire(variantBaseValue, false)
-
-						tryConsumeBuffer()
-						return
-					end
-
-					if _TapCount == 0 then
-						fire(if _ToggleState then self.Active else variantBaseValue, false)
+						fire(if _ToggleState then self.Active else inactiveValue, false)
 					end
 
 					if bindName == _ActiveBindName then
@@ -713,9 +611,17 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 	end
 
 	function self:SetEnabled(enabled: boolean)
+		if self.Enabled == enabled then return end
 		self.Enabled = enabled
 
 		if not enabled then
+			self.Active = variantBaseValue
+			_ActiveBindName = nil
+			_ActiveMainKey = Enum.KeyCode.None
+			_ActiveBindCount = 0
+			_ToggleState = false
+			table.clear(activeBindsCounted)
+			table.clear(blockedPresses)
 			self.Activated:Fire(variantBaseValue, false)
 			self.Ended:Fire(variantBaseValue)
 		end
@@ -946,7 +852,7 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 	end
 
 	function self:SetAllBinds(Binds: Binds)
-		self.Binds = Binds
+		self.Binds = BindUtils.Clone(Binds)
 		rebuild()
 	end
 
@@ -1247,7 +1153,7 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 		return (InputContext and InputContext:FindFirstChildOfClass("InputAction"))
 	end
 
-	function self:GetInputContext(): InputContext
+	function self:GetInputContext(): InputContext?
 		return InputContext
 	end
 
@@ -1272,7 +1178,11 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 			lbl.Parent = parent
 			return lbl
 		end)
-		return if ok then label else nil
+		if not ok then
+			warn("[IIAS] Failed to create InputActionLabel: " .. tostring(label))
+			return nil
+		end
+		return label
 	end
 
 	function self:Destroy(): boolean
@@ -1313,6 +1223,7 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 				child:Destroy()
 			end
 			InputContext:Destroy()
+			InputContext = nil :: any
 		end
 
 		self.Activated:DisconnectAll()
@@ -1361,27 +1272,38 @@ function IIAS.getContext(name: string): Context?
 	}
 end
 
+local function evaluateActionContexts(actionName: string)
+	local obj = IIAS.get(actionName)
+	if not obj then return end
+
+	local shouldEnable = true
+	for _, ctx in IIAS.contextedBinds do
+		if ctx.Members[actionName] and not ctx.Enabled then
+			shouldEnable = false
+			break
+		end
+	end
+
+	obj:SetEnabled(shouldEnable)
+end
+
 function IIAS.addContext(name: string, ...: BindingObject)
 	IIAS.newContext(name)
 	local context = IIAS.contextedBinds[name]
 	for _, obj in { ... } do
 		context.Members[obj.Name] = true
-		obj:SetEnabled(context.Enabled)
+		evaluateActionContexts(obj.Name)
 	end
 end
 
 function IIAS.enableContext(name: string, enabled: boolean)
 	local context = IIAS.contextedBinds[name]
 	if not context then return end
+	context.Enabled = enabled
 
 	for bindName in context.Members do
-		local obj = IIAS.get(bindName)
-		if obj then
-			obj:SetEnabled(enabled)
-		end
+		evaluateActionContexts(bindName)
 	end
-
-	context.Enabled = enabled
 end
 
 function IIAS.isContextEnabled(name: string): boolean
@@ -1393,21 +1315,40 @@ function IIAS.removeFromContext(name: string, bind: BindingObject)
 	local context = IIAS.contextedBinds[name]
 	if not context then return end
 	context.Members[bind.Name] = nil
+	evaluateActionContexts(bind.Name)
 end
 
 function IIAS.removeAllFromContext(name: string)
-	IIAS.contextedBinds[name] = {
-		Enabled = true,
-		Members = {},
-	}
+	local context = IIAS.contextedBinds[name]
+	if not context then return end
+	local oldMembers = context.Members
+	context.Members = {}
+	for bindName in oldMembers do
+		evaluateActionContexts(bindName)
+	end
 end
 
 function IIAS.removeContext(name: string)
+	local context = IIAS.contextedBinds[name]
+	if not context then return end
+	local oldMembers = context.Members
 	IIAS.contextedBinds[name] = nil
+	for bindName in oldMembers do
+		evaluateActionContexts(bindName)
+	end
 end
 
 function IIAS.clearContexts()
+	local allOldMembers: { [string]: boolean } = {}
+	for _, ctx in IIAS.contextedBinds do
+		for bindName in ctx.Members do
+			allOldMembers[bindName] = true
+		end
+	end
 	table.clear(IIAS.contextedBinds)
+	for bindName in allOldMembers do
+		evaluateActionContexts(bindName)
+	end
 end
 
 return IIAS

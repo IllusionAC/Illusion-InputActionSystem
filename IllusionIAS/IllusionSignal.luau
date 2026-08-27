@@ -13,32 +13,26 @@ return {
 		local head: IAS.Node?
 
 		local function createConnection(node: IAS.Node): IAS.IAScriptConnection
-			local connected = true
-
 			local conn: IAS.IAScriptConnection
 			conn = {
 				Connected = true,
 				Disconnect = function(self: IAS.IAScriptConnection)
-					if not connected then return end
-					connected = false
+					if not self.Connected then return end
 					self.Connected = false
 					node.fn = nil
 
-					if head == node then
+					if node.prev then
+						node.prev.next = node.next
+					else
 						head = node.next
-						node.next = nil
-						return
 					end
 
-					local current = head
-					while current and current.next ~= node do
-						current = current.next
+					if node.next then
+						node.next.prev = node.prev
 					end
 
-					if current then
-						current.next = node.next
-						node.next = nil
-					end
+					node.next = nil
+					node.prev = nil
 				end,
 			}
 
@@ -50,23 +44,24 @@ return {
 				local node: IAS.Node = {
 					fn = fn,
 					next = head,
+					prev = nil,
 				}
 
+				if head then
+					head.prev = node
+				end
 				head = node
+
 				return createConnection(node)
 			end,
 
 			Once = function(self: IAS.IAScriptSignal, fn: IAS.func): IAS.IAScriptConnection
-				local fired = false
 				local conn: IAS.IAScriptConnection
-
 				conn = self:Connect(function(active: IAS.variant, pressed: boolean?)
-					if fired then return end
-					fired = true
-					if conn then
+					if conn.Connected then
 						conn:Disconnect()
+						fn(active, pressed)
 					end
-					fn(active, pressed)
 				end)
 
 				return conn
@@ -77,7 +72,7 @@ return {
 				local conn: IAS.IAScriptConnection
 
 				conn = self:Connect(function(active: IAS.variant, pressed: boolean?)
-					if conn then
+					if conn.Connected then
 						conn:Disconnect()
 					end
 					task.spawn(thread, active, pressed)
@@ -103,6 +98,7 @@ return {
 					node.fn = nil
 					local nextNode = node.next
 					node.next = nil
+					node.prev = nil
 					node = nextNode
 				end
 				head = nil

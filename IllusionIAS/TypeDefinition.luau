@@ -26,6 +26,7 @@ export type IAScriptSignal = {
 export type Node = {
 	fn: func?,
 	next: Node?,
+	prev: Node?,
 }
 
 export type supposedKeyCode = Enum.KeyCode | string
@@ -221,7 +222,7 @@ export type BindingObject = {
 
 	GetPreferredBinding: (self: BindingObject) -> InputBinding?,
 	GetInputAction: (self: BindingObject) -> InputAction?,
-	GetInputContext: (self: BindingObject) -> InputContext,
+	GetInputContext: (self: BindingObject) -> InputContext?,
 	GetInputBinding: (self: BindingObject, keyOrName: (supposedKeyCode | string)?) -> InputBinding?,
 	CreateActionLabel: (self: BindingObject, parent: Instance?) -> GuiObject?,
 
