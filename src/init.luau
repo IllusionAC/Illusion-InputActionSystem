@@ -24,17 +24,18 @@ export type Contexts = IAS.Contexts
 export type IllusionIAS = IAS.IllusionIAS
 export type supposedKeyCode = IAS.supposedKeyCode
 
-local function getBindFolder(): Instance
+@native local function getBindFolder(): Folder
 	local existing = script:FindFirstChild("BindFolder")
 	if existing and existing:IsA("Folder") then return existing end
 
 	local folder = Instance.new("Folder")
 	folder.Name = "BindFolder"
 	folder.Parent = script
+
 	return folder
 end
 
-local function instanceSetup(name: string, inputType: Enum.InputActionType, InputContext: InputContext): (InputAction, InputBinding)
+@native local function instanceSetup(name: string, inputType: Enum.InputActionType, InputContext: InputContext): InputBinding
 	local InputAction = Instance.new("InputAction")
 	InputAction.Name = name
 	InputAction.Type = inputType
@@ -44,36 +45,40 @@ local function instanceSetup(name: string, inputType: Enum.InputActionType, Inpu
 	local InputBinding = Instance.new("InputBinding")
 	InputBinding.Parent = InputAction
 
-	return InputAction, InputBinding
+	return InputBinding
 end
 
-local function instanceDeletion(name: string, InputContext: InputContext)
+@native local function instanceDeletion(name: string, InputContext: InputContext)
 	local inputAction = InputContext:FindFirstChild(name)
 	if inputAction then inputAction:Destroy() end
 end
 
+@native local function valueOftypeGivesVariant(inputType: Enum.InputActionType): variant
+	return
+		if inputType == Enum.InputActionType.Bool then false
+		elseif inputType == Enum.InputActionType.Direction1D then 0
+		elseif inputType == Enum.InputActionType.Direction2D or inputType == Enum.InputActionType.ViewportPosition then Vector2.zero
+		else Vector3.zero
+end
+
 @native local function valueOfVariantGivesPressed(variantValue: variant): boolean
-	if typeof(variantValue) == "boolean" then
-		return variantValue
-	elseif typeof(variantValue) == "number" then
-		return variantValue ~= 0
-	elseif typeof(variantValue) == "Vector2" then
-		return variantValue ~= Vector2.zero
-	elseif typeof(variantValue) == "Vector3" then
-		return variantValue ~= Vector3.zero
-	end
-	return false
+	return
+		if typeof(variantValue) == "boolean" then variantValue
+		elseif typeof(variantValue) == "number" then variantValue ~= 0
+		elseif typeof(variantValue) == "Vector2" then variantValue ~= Vector2.zero
+		elseif typeof(variantValue) == "Vector3" then variantValue ~= Vector3.zero
+		else false
 end
 
 @native local function convertStrToEnumKeycode(name: supposedKeyCode?): Enum.KeyCode
 	return BindUtils.ConvertKeyCode(name)
 end
 
-local function getNameForBinding(key: Enum.KeyCode): string
+@native local function getNameForBinding(key: Enum.KeyCode): string
 	return IAS.InputTypeByKey[key] or "Input"
 end
 
-local function getBindNameFromKeyOrName(keyOrName: (supposedKeyCode | string)?, binds: Binds): string?
+@native local function getBindNameFromKeyOrName(keyOrName: (supposedKeyCode | string)?, binds: Binds): string?
 	if not keyOrName then return "MainAction" end
 
 	if typeof(keyOrName) == "string" and binds[keyOrName] then
@@ -90,12 +95,13 @@ local function getBindNameFromKeyOrName(keyOrName: (supposedKeyCode | string)?, 
 	return nil
 end
 
-local function getBindNameFromKeyCode(mainKey: Enum.KeyCode, binds: Binds): string?
+@native local function getBindNameFromKeyCode(mainKey: Enum.KeyCode, binds: Binds): string?
 	for bindName, bind in binds do
 		if bindName ~= "UIButton" and bind.KeyCode == mainKey then
 			return bindName
 		end
 	end
+
 	return nil
 end
 
@@ -108,11 +114,7 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 	if activeBinds[name] then return activeBinds[name] end
 	local InputType = inputType or Enum.InputActionType.Bool
 
-	local variantBaseValue: variant =
-		if InputType == Enum.InputActionType.Bool then false
-		elseif InputType == Enum.InputActionType.Direction1D then 0
-		elseif InputType == Enum.InputActionType.Direction2D or InputType == Enum.InputActionType.ViewportPosition then Vector2.zero
-		else Vector3.zero
+	local variantBaseValue = valueOftypeGivesVariant(InputType)
 
 	local InputContext = Instance.new("InputContext")
 
@@ -183,7 +185,7 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 		Started = IASignal.new(),
 		Ended = IASignal.new(),
 	} :: BindingObject
-	
+
 	local stateConnections: { [string]: RBXScriptConnection } = {}
 
 	local _PrevBinds = BindUtils.Clone(self.Binds)
@@ -444,7 +446,7 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 
 			for _, diff in diffs do
 				if diff.ChangeType == "Added" then
-					local _, binding = instanceSetup(diff.BindName, InputType, InputContext)
+					local binding = instanceSetup(diff.BindName, InputType, InputContext)
 					if diff.BindName == "UIButton" then
 						binding.UIButton = diff.UIButton
 						binding.UIModifier = diff.UIModifier
@@ -496,7 +498,7 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 		rebuilding = false
 	end
 
-	local _, mainBinding = instanceSetup(MainName, InputType, InputContext)
+	local mainBinding = instanceSetup(MainName, InputType, InputContext)
 	mainBinding.Name = "InputBinding"
 	mainBinding.KeyCode = Enum.KeyCode.None
 	mainBinding.PrimaryModifier = Enum.KeyCode.None
@@ -505,10 +507,8 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 	mainBinding.Type = Enum.InputBindingType.Automatic
 	applyBindingProperties(mainBinding)
 
-	local _, uiBinding = instanceSetup("UIButton", InputType, InputContext)
+	local uiBinding = instanceSetup("UIButton", InputType, InputContext)
 	uiBinding.Name = "InputBinding"
-	uiBinding.UIButton = nil
-	uiBinding.UIModifier = nil
 	uiBinding.DisplayName = ""
 	uiBinding.Type = Enum.InputBindingType.Automatic
 	applyBindingProperties(uiBinding)
@@ -621,10 +621,6 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 	end
 
 	function self:IsEnabled(): boolean
-		return self.Enabled
-	end
-
-	function self:IsEnable(): boolean
 		return self.Enabled
 	end
 
@@ -1226,12 +1222,25 @@ end
 function IIAS.get(name: string): BindingObject?
 	return activeBinds[name]
 end
-IIAS.Get = IIAS.get
 
 function IIAS.getAll(): { [string]: BindingObject }
 	return table.clone(activeBinds)
 end
-IIAS.GetAll = IIAS.getAll
+
+local function evaluateActionContexts(actionName: string)
+	local obj = IIAS.get(actionName)
+	if not obj then return end
+
+	local shouldEnable = true
+	for _, ctx in IIAS.contextedBinds do
+		if ctx.Members[actionName] and not ctx.Enabled then
+			shouldEnable = false
+			break
+		end
+	end
+
+	obj:SetEnabled(shouldEnable)
+end
 
 function IIAS.newContext(name: string)
 	if not IIAS.contextedBinds[name] then
@@ -1249,21 +1258,6 @@ function IIAS.getContext(name: string): Context?
 		Enabled = ctx.Enabled,
 		Members = table.clone(ctx.Members),
 	}
-end
-
-local function evaluateActionContexts(actionName: string)
-	local obj = IIAS.get(actionName)
-	if not obj then return end
-
-	local shouldEnable = true
-	for _, ctx in IIAS.contextedBinds do
-		if ctx.Members[actionName] and not ctx.Enabled then
-			shouldEnable = false
-			break
-		end
-	end
-
-	obj:SetEnabled(shouldEnable)
 end
 
 function IIAS.addContext(name: string, ...: BindingObject)
@@ -1290,6 +1284,16 @@ function IIAS.isContextEnabled(name: string): boolean
 	return IIAS.contextedBinds[name].Enabled
 end
 
+function IIAS.removeContext(name: string)
+	local context = IIAS.contextedBinds[name]
+	if not context then return end
+	local oldMembers = context.Members
+	IIAS.contextedBinds[name] = nil
+	for bindName in oldMembers do
+		evaluateActionContexts(bindName)
+	end
+end
+
 function IIAS.removeFromContext(name: string, bind: BindingObject)
 	local context = IIAS.contextedBinds[name]
 	if not context then return end
@@ -1302,16 +1306,6 @@ function IIAS.removeAllFromContext(name: string)
 	if not context then return end
 	local oldMembers = context.Members
 	context.Members = {}
-	for bindName in oldMembers do
-		evaluateActionContexts(bindName)
-	end
-end
-
-function IIAS.removeContext(name: string)
-	local context = IIAS.contextedBinds[name]
-	if not context then return end
-	local oldMembers = context.Members
-	IIAS.contextedBinds[name] = nil
 	for bindName in oldMembers do
 		evaluateActionContexts(bindName)
 	end

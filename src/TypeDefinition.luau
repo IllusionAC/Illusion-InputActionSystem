@@ -113,7 +113,6 @@ export type BindingObject = {
 
 	SetEnabled: (self: BindingObject, bool: boolean) -> (),
 	IsEnabled: (self: BindingObject) -> boolean,
-	IsEnable: (self: BindingObject) -> boolean,
 
 	SetPriority: (self: BindingObject, number: number) -> (),
 	GetPriority: (self: BindingObject) -> number,
@@ -235,11 +234,9 @@ export type Contexts = { [string]: Context }
 
 export type IllusionIAS = {
 	contextedBinds: Contexts,
-	enableControlHints: (module: Instance | string, parent: Instance | PlayerGui?) -> ScreenGui,
 	new: (name: string, inputType: Enum.InputActionType?) -> BindingObject,
-	Get: (name: string) -> BindingObject?,
+	enableControlHints: (module: Instance | string, parent: Instance | PlayerGui?) -> ScreenGui,
 	get: (name: string) -> BindingObject?,
-	GetAll: () -> { [string]: BindingObject },
 	getAll: () -> { [string]: BindingObject },
 	newContext: (name: string) -> (),
 	getContext: (name: string) -> Context?,
