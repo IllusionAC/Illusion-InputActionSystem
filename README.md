@@ -32,10 +32,19 @@ If you're working with Roblox's new InputActionSystem or just need robust keybin
 
 **Option 2:** [Clone from GitHub](https://github.com/IllusionAC/Illusion-InputActionSystem)
 
-Place the module in `ReplicatedStorage` and require it in any LocalScript:
+**Option 3:** Wally Package Manager
+Add to your `wally.toml`:
+```toml
+[dependencies]
+IllusionIAS = "illusionac/illusion-inputactionsystem@^1.0.0"
+```
+
+Place the module in `ReplicatedStorage` (or via Wally `Packages`) and require it in any LocalScript:
 
 ```lua
 local IAS = require(game.ReplicatedStorage.IllusionIAS)
+-- Or if using Wally:
+-- local IAS = require(game.ReplicatedStorage.Packages.IllusionIAS)
 ```
 
 ### Server Authority version:

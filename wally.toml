@@ -1,0 +1,18 @@
+[package]
+name = "illusionac/illusion-inputactionsystem"
+version = "1.0.0"
+registry = "https://github.com/UpliftGames/wally-index"
+realm = "shared"
+description = "Illusion's InputActionSystem - A modular input & keybind management library for Roblox"
+license = "MIT"
+authors = ["Illusion <github.com/IllusionAC>"]
+include = [
+    "src",
+    "src/**",
+    "default.project.json",
+    "wally.toml",
+    "README.md",
+    "LICENSE"
+]
+
+[dependencies]
