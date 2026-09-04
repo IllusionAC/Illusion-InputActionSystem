@@ -1,6 +1,6 @@
 [package]
 name = "illusionac/illusion-inputactionsystem"
-version = "1.0.0"
+version = "1.1.0"
 registry = "https://github.com/UpliftGames/wally-index"
 realm = "shared"
 description = "Illusion's InputActionSystem - A modular input & keybind management library for Roblox"

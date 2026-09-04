@@ -34,7 +34,7 @@ Hey developers! I'm really excited to share you my **InputActionSystem** library
 Add to your `wally.toml`:
 ```toml
 [dependencies]
-IllusionIAS = "illusionac/illusion-inputactionsystem@^1.0.0"
+IllusionIAS = "illusionac/illusion-inputactionsystem@^1.1.0"
 ```
 
 Place the module in `ReplicatedStorage` (or via Wally `Packages`) and require it in any LocalScript:
