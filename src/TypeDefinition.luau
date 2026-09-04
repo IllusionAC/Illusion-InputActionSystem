@@ -8,25 +8,25 @@
 
 export type variant = boolean | number | Vector2 | Vector3
 
-export type func = (active: variant, pressed: boolean?) -> ()
+export type func<T = variant> = (active: T, pressed: boolean?) -> ()
 
 export type IAScriptConnection = {
 	Connected: boolean,
 	Disconnect: (self: IAScriptConnection) -> (),
 }
 
-export type IAScriptSignal = {
-	Connect: (self: IAScriptSignal, fn: func) -> IAScriptConnection,
-	Once: (self: IAScriptSignal, fn: func) -> IAScriptConnection,
-	Fire: (self: IAScriptSignal, active: variant, pressed: boolean?) -> (),
-	Wait: (self: IAScriptSignal) -> (variant, boolean?),
-	DisconnectAll: (self: IAScriptSignal) -> (),
+export type IAScriptSignal<T = variant> = {
+	Connect: (self: IAScriptSignal<T>, fn: func<T>) -> IAScriptConnection,
+	Once: (self: IAScriptSignal<T>, fn: func<T>) -> IAScriptConnection,
+	Fire: (self: IAScriptSignal<T>, active: T, pressed: boolean?) -> (),
+	Wait: (self: IAScriptSignal<T>) -> (T, boolean?),
+	DisconnectAll: (self: IAScriptSignal<T>) -> (),
 }
 
-export type Node = {
-	fn: func?,
-	next: Node?,
-	prev: Node?,
+export type Node<T = variant> = {
+	fn: func<T>?,
+	next: Node<T>?,
+	prev: Node<T>?,
 }
 
 export type supposedKeyCode = Enum.KeyCode | string
@@ -62,7 +62,7 @@ export type DiffList = {
 	BindingType: Enum.InputBindingType?,
 }
 
-export type BindingObject = {
+export type BindingObject<T = variant> = {
 	Name: string,
 
 	Hold: boolean,
@@ -72,7 +72,7 @@ export type BindingObject = {
 	UIButton: GuiButton?,
 	UIModifier: GuiButton?,
 
-	Active: variant,
+	Active: T,
 
 	Enabled: boolean,
 	Priority: number,
@@ -96,69 +96,69 @@ export type BindingObject = {
 	InputBufferEnabled: boolean,
 	InputBufferTime: number,
 
-	Activated: IAScriptSignal,
-	Started: IAScriptSignal,
-	Ended: IAScriptSignal,
+	Activated: IAScriptSignal<T>,
+	Started: IAScriptSignal<T>,
+	Ended: IAScriptSignal<T>,
 
-	Fire: (self: BindingObject, active: variant, pressed: boolean) -> (),
+	Fire: (self: BindingObject<T>, active: T, pressed: boolean) -> (),
 
-	SetHold: (self: BindingObject, bool: boolean) -> (),
-	SetUIButton: (self: BindingObject, button: GuiButton?) -> (),
-	SetUIModifier: (self: BindingObject, button: GuiButton?) -> (),
-	GetUIModifier: (self: BindingObject) -> GuiButton?,
-	SetTapActivation: (self: BindingObject, requiredTaps: number, tapWindow: number) -> (),
-	SetCooldown: (self: BindingObject, cooldown: number) -> (),
-	ResetCooldown: (self: BindingObject) -> (),
-	CooldownEnded: (self: BindingObject) -> boolean,
+	SetHold: (self: BindingObject<T>, bool: boolean) -> (),
+	SetUIButton: (self: BindingObject<T>, button: GuiButton?) -> (),
+	SetUIModifier: (self: BindingObject<T>, button: GuiButton?) -> (),
+	GetUIModifier: (self: BindingObject<T>) -> GuiButton?,
+	SetTapActivation: (self: BindingObject<T>, requiredTaps: number, tapWindow: number) -> (),
+	SetCooldown: (self: BindingObject<T>, cooldown: number) -> (),
+	ResetCooldown: (self: BindingObject<T>) -> (),
+	CooldownEnded: (self: BindingObject<T>) -> boolean,
 
-	SetEnabled: (self: BindingObject, bool: boolean) -> (),
-	IsEnabled: (self: BindingObject) -> boolean,
+	SetEnabled: (self: BindingObject<T>, bool: boolean) -> (),
+	IsEnabled: (self: BindingObject<T>) -> boolean,
 
-	SetPriority: (self: BindingObject, number: number) -> (),
-	GetPriority: (self: BindingObject) -> number,
+	SetPriority: (self: BindingObject<T>, number: number) -> (),
+	GetPriority: (self: BindingObject<T>) -> number,
 
-	SetSink: (self: BindingObject, bool: boolean) -> (),
-	GetSink: (self: BindingObject) -> boolean,
+	SetSink: (self: BindingObject<T>, bool: boolean) -> (),
+	GetSink: (self: BindingObject<T>) -> boolean,
 
-	SetScale: (self: BindingObject, scale: number) -> (),
-	GetScale: (self: BindingObject) -> number,
+	SetScale: (self: BindingObject<T>, scale: number) -> (),
+	GetScale: (self: BindingObject<T>) -> number,
 
-	SetVectorScale: (self: BindingObject, vector: Vector2 | Vector3) -> (),
-	GetVectorScale: (self: BindingObject) -> Vector2 | Vector3,
+	SetVectorScale: (self: BindingObject<T>, vector: Vector2 | Vector3) -> (),
+	GetVectorScale: (self: BindingObject<T>) -> Vector2 | Vector3,
 
-	SetResponseCurve: (self: BindingObject, curve: number) -> (),
-	GetResponseCurve: (self: BindingObject) -> number,
+	SetResponseCurve: (self: BindingObject<T>, curve: number) -> (),
+	GetResponseCurve: (self: BindingObject<T>) -> number,
 
-	SetPressedThreshold: (self: BindingObject, threshold: number) -> (),
-	GetPressedThreshold: (self: BindingObject) -> number,
+	SetPressedThreshold: (self: BindingObject<T>, threshold: number) -> (),
+	GetPressedThreshold: (self: BindingObject<T>) -> number,
 
-	SetReleasedThreshold: (self: BindingObject, threshold: number) -> (),
-	GetReleasedThreshold: (self: BindingObject) -> number,
+	SetReleasedThreshold: (self: BindingObject<T>, threshold: number) -> (),
+	GetReleasedThreshold: (self: BindingObject<T>) -> number,
 
-	SetPointerIndex: (self: BindingObject, index: number) -> (),
-	GetPointerIndex: (self: BindingObject) -> number,
+	SetPointerIndex: (self: BindingObject<T>, index: number) -> (),
+	GetPointerIndex: (self: BindingObject<T>) -> number,
 
-	SetClampMagnitudeToOne: (self: BindingObject, bool: boolean) -> (),
-	GetClampMagnitudeToOne: (self: BindingObject) -> boolean,
+	SetClampMagnitudeToOne: (self: BindingObject<T>, bool: boolean) -> (),
+	GetClampMagnitudeToOne: (self: BindingObject<T>) -> boolean,
 
-	GetState: (self: BindingObject) -> variant,
+	GetState: (self: BindingObject<T>) -> T,
 
-	SetInputBufferEnabled: (self: BindingObject, bool: boolean) -> (),
-	SetInputBufferTime: (self: BindingObject, t: number) -> (),
+	SetInputBufferEnabled: (self: BindingObject<T>, bool: boolean) -> (),
+	SetInputBufferTime: (self: BindingObject<T>, t: number) -> (),
 
-	GetBinds: (self: BindingObject) -> Binds,
+	GetBinds: (self: BindingObject<T>) -> Binds,
 
-	GetCooldownRemaining: (self: BindingObject) -> number,
-	IsBuffered: (self: BindingObject) -> boolean,
-	ResetBuffer: (self: BindingObject) -> (),
-	GetBufferedVariant: (self: BindingObject) -> variant?,
-	GetBufferedKey: (self: BindingObject) -> Enum.KeyCode,
-	GetActiveBindCount: (self: BindingObject) -> number,
-	GetToggleState: (self: BindingObject) -> boolean,
-	GetActiveMainKey: (self: BindingObject) -> Enum.KeyCode,
+	GetCooldownRemaining: (self: BindingObject<T>) -> number,
+	IsBuffered: (self: BindingObject<T>) -> boolean,
+	ResetBuffer: (self: BindingObject<T>) -> (),
+	GetBufferedVariant: (self: BindingObject<T>) -> T?,
+	GetBufferedKey: (self: BindingObject<T>) -> Enum.KeyCode,
+	GetActiveBindCount: (self: BindingObject<T>) -> number,
+	GetToggleState: (self: BindingObject<T>) -> boolean,
+	GetActiveMainKey: (self: BindingObject<T>) -> Enum.KeyCode,
 
 	AddBind: (
-		self: BindingObject,
+		self: BindingObject<T>,
 		mainKey: supposedKeyCode,
 		PrimaryModifier: supposedKeyCode?,
 		SecondaryModifier: supposedKeyCode?,
@@ -169,7 +169,7 @@ export type BindingObject = {
 		BindingType: Enum.InputBindingType?
 	) -> (),
 	SetBind: (
-		self: BindingObject,
+		self: BindingObject<T>,
 		mainKey: supposedKeyCode,
 		PrimaryModifier: supposedKeyCode?,
 		SecondaryModifier: supposedKeyCode?,
@@ -179,25 +179,25 @@ export type BindingObject = {
 		DisplayImage: Content?,
 		BindingType: Enum.InputBindingType?
 	) -> (),
-	SetAllBinds: (self: BindingObject, Binds: Binds) -> (),
-	RemoveBind: (self: BindingObject, mainKey: supposedKeyCode, PrimaryModifier: supposedKeyCode?, SecondaryModifier: supposedKeyCode?) -> (),
+	SetAllBinds: (self: BindingObject<T>, Binds: Binds) -> (),
+	RemoveBind: (self: BindingObject<T>, mainKey: supposedKeyCode, PrimaryModifier: supposedKeyCode?, SecondaryModifier: supposedKeyCode?) -> (),
 	EditBind: (
-		self: BindingObject,
+		self: BindingObject<T>,
 		oldMain: supposedKeyCode,
 		oldMods: { PrimaryModifier: supposedKeyCode?, SecondaryModifier: supposedKeyCode? },
 		newMain: supposedKeyCode,
 		newMods: { PrimaryModifier: supposedKeyCode?, SecondaryModifier: supposedKeyCode? }
 	) -> (),
-	SetDisplayName: (self: BindingObject, mainKey: supposedKeyCode, displayName: string) -> boolean,
-	GetDisplayName: (self: BindingObject, mainKey: supposedKeyCode) -> string?,
-	SetDisplayImage: (self: BindingObject, mainKey: supposedKeyCode, displayImage: Content) -> boolean,
-	GetDisplayImage: (self: BindingObject, mainKey: supposedKeyCode) -> Content?,
-	SetBindingType: (self: BindingObject, mainKey: supposedKeyCode, bindingType: Enum.InputBindingType) -> boolean,
-	GetBindingType: (self: BindingObject, mainKey: supposedKeyCode) -> Enum.InputBindingType?,
-	ClearBinds: (self: BindingObject) -> (),
+	SetDisplayName: (self: BindingObject<T>, mainKey: supposedKeyCode, displayName: string) -> boolean,
+	GetDisplayName: (self: BindingObject<T>, mainKey: supposedKeyCode) -> string?,
+	SetDisplayImage: (self: BindingObject<T>, mainKey: supposedKeyCode, displayImage: Content) -> boolean,
+	GetDisplayImage: (self: BindingObject<T>, mainKey: supposedKeyCode) -> Content?,
+	SetBindingType: (self: BindingObject<T>, mainKey: supposedKeyCode, bindingType: Enum.InputBindingType) -> boolean,
+	GetBindingType: (self: BindingObject<T>, mainKey: supposedKeyCode) -> Enum.InputBindingType?,
+	ClearBinds: (self: BindingObject<T>) -> (),
 
 	SetCompositeDirections: (
-		self: BindingObject,
+		self: BindingObject<T>,
 		up: supposedKeyCode?,
 		down: supposedKeyCode?,
 		left: supposedKeyCode?,
@@ -205,7 +205,7 @@ export type BindingObject = {
 		forward: supposedKeyCode?,
 		backward: supposedKeyCode?
 	) -> (),
-	GetCompositeDirections: (self: BindingObject) -> {
+	GetCompositeDirections: (self: BindingObject<T>) -> {
 		Up: Enum.KeyCode,
 		Down: Enum.KeyCode,
 		Left: Enum.KeyCode,
@@ -213,19 +213,19 @@ export type BindingObject = {
 		Forward: Enum.KeyCode,
 		Backward: Enum.KeyCode,
 	},
-	SetCompositeModifiers: (self: BindingObject, PrimaryModifier: supposedKeyCode?, SecondaryModifier: supposedKeyCode?) -> (),
-	GetCompositeModifiers: (self: BindingObject) -> {
+	SetCompositeModifiers: (self: BindingObject<T>, PrimaryModifier: supposedKeyCode?, SecondaryModifier: supposedKeyCode?) -> (),
+	GetCompositeModifiers: (self: BindingObject<T>) -> {
 		PrimaryModifier: Enum.KeyCode,
 		SecondaryModifier: Enum.KeyCode,
 	},
 
-	GetPreferredBinding: (self: BindingObject) -> InputBinding?,
-	GetInputAction: (self: BindingObject) -> InputAction?,
-	GetInputContext: (self: BindingObject) -> InputContext?,
-	GetInputBinding: (self: BindingObject, keyOrName: (supposedKeyCode | string)?) -> InputBinding?,
-	CreateActionLabel: (self: BindingObject, parent: Instance?) -> GuiObject?,
+	GetPreferredBinding: (self: BindingObject<T>) -> InputBinding?,
+	GetInputAction: (self: BindingObject<T>) -> InputAction?,
+	GetInputContext: (self: BindingObject<T>) -> InputContext?,
+	GetInputBinding: (self: BindingObject<T>, keyOrName: (supposedKeyCode | string)?) -> InputBinding?,
+	CreateActionLabel: (self: BindingObject<T>, parent: Instance?) -> GuiObject?,
 
-	Destroy: (self: BindingObject) -> boolean,
+	Destroy: (self: BindingObject<T>) -> boolean,
 }
 
 export type Context = { Enabled: boolean, Members: { [string]: boolean } }

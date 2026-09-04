@@ -14,15 +14,16 @@ local IASignal = require("@self/IllusionSignal")
 local BindUtils = require("@self/BindUtils")
 
 export type IAScriptConnection = IAS.IAScriptConnection
-export type IAScriptSignal = IAS.IAScriptSignal
+export type IAScriptSignal<T = variant> = IAS.IAScriptSignal<T>
 export type variant = IAS.variant
 export type Bind = IAS.Bind
 export type Binds = IAS.Binds
-export type BindingObject = IAS.BindingObject
+export type BindingObject<T = variant> = IAS.BindingObject<T>
 export type Context = IAS.Context
 export type Contexts = IAS.Contexts
 export type IllusionIAS = IAS.IllusionIAS
 export type supposedKeyCode = IAS.supposedKeyCode
+export type func<T = variant> = IAS.func<T>
 
 @native local function getBindFolder(): Folder
 	local existing = script:FindFirstChild("BindFolder")
@@ -448,8 +449,12 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 				if diff.ChangeType == "Added" then
 					local binding = instanceSetup(diff.BindName, InputType, InputContext)
 					if diff.BindName == "UIButton" then
-						binding.UIButton = diff.UIButton
-						binding.UIModifier = diff.UIModifier
+						if diff.UIButton then
+							binding.UIButton = diff.UIButton
+						end
+						if diff.UIModifier then
+							binding.UIModifier = diff.UIModifier
+						end
 					else
 						binding.KeyCode = diff.NewKeyCode or Enum.KeyCode.None
 						binding.Name = getNameForBinding(binding.KeyCode) .. "Binding"
@@ -469,8 +474,12 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 						local binding = action:FindFirstChildOfClass("InputBinding")
 						if binding then
 							if diff.BindName == "UIButton" then
-								binding.UIButton = diff.UIButton
-								binding.UIModifier = diff.UIModifier
+								if diff.UIButton then
+									binding.UIButton = diff.UIButton
+								end
+								if diff.UIModifier then
+									binding.UIModifier = diff.UIModifier
+								end
 							else
 								if diff.NewKeyCode then
 									binding.KeyCode = diff.NewKeyCode
@@ -532,7 +541,7 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 		local uiAction = InputContext and InputContext:FindFirstChild("UIButton")
 		if uiAction then
 			local binding = uiAction:FindFirstChildOfClass("InputBinding")
-			if binding then
+			if binding and button then
 				binding.UIButton = button
 			end
 		end
@@ -561,7 +570,7 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 		local uiAction = InputContext and InputContext:FindFirstChild("UIButton")
 		if uiAction then
 			local binding = uiAction:FindFirstChildOfClass("InputBinding")
-			if binding then
+			if binding and button then
 				binding.UIModifier = button
 			end
 		end
@@ -1198,7 +1207,6 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 				child:Destroy()
 			end
 			InputContext:Destroy()
-			InputContext = nil :: any
 		end
 
 		self.Activated:DisconnectAll()
