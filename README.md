@@ -5,9 +5,7 @@
 ![IIASLogo|256x256, 75%](./IIASLogo.png) 
 </div>
 
-Hey developers! I'm excited to share the latest version of my **InputActionSystem** library - a complete rewrite of my [previous keybind system](https://devforum.roblox.com/t/illusions-inputactionsystem-an-easy-way-of-adding-keybinds-and-other/4061839) that's now fully modular and can be integrated anywhere in your LocalScripts.
-
-If you're working with Roblox's new InputActionSystem or just need robust keybind management, this library will save you hours of development time.
+Hey developers! I'm really excited to share you my **InputActionSystem** library.  If you're working with Roblox's new InputActionSystem or just need robust keybind management, this library will save you hours of development time.
 
 ---
 
@@ -49,7 +47,10 @@ local IAS = require(game.ReplicatedStorage.IllusionIAS)
 
 ### Server Authority version:
 
+(NOT RECOMMENDED)
 Do the same steps as for normal version, but require the module from a Server Script.
+
+(The current state of the module doesn't really allow Server Authority usage. I'm currently trying to find a way to implement it, which may require entire rework of the module. Feel free to propose solutions)
 
 ---
 
