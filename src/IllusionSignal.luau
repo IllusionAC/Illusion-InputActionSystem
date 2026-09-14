@@ -9,10 +9,10 @@
 local IAS = require("./TypeDefinition")
 
 return {
-	new = function<T>(): IAS.IAScriptSignal<T>
-		local head: IAS.Node<T>?
+	new = function<T...>(): IAS.IAScriptSignal<T...>
+		local head: IAS.Node<T...>?
 
-		local function createConnection(node: IAS.Node<T>): IAS.IAScriptConnection
+		local function createConnection(node: IAS.Node<T...>): IAS.IAScriptConnection
 			local conn: IAS.IAScriptConnection
 			conn = {
 				Connected = true,
@@ -39,9 +39,9 @@ return {
 			return conn
 		end
 
-		local Signal: IAS.IAScriptSignal<T> = {
-			Connect = function(self: IAS.IAScriptSignal<T>, fn: IAS.func<T>): IAS.IAScriptConnection
-				local node: IAS.Node<T> = {
+		local Signal: IAS.IAScriptSignal<T...> = {
+			Connect = function(self: IAS.IAScriptSignal<T...>, fn: IAS.func<T...>): IAS.IAScriptConnection
+				local node: IAS.Node<T...> = {
 					fn = fn,
 					next = head,
 					prev = nil,
@@ -55,44 +55,44 @@ return {
 				return createConnection(node)
 			end,
 
-			Once = function(self: IAS.IAScriptSignal<T>, fn: IAS.func<T>): IAS.IAScriptConnection
+			Once = function(self: IAS.IAScriptSignal<T...>, fn: IAS.func<T...>): IAS.IAScriptConnection
 				local conn: IAS.IAScriptConnection
-				conn = self:Connect(function(active: T, pressed: boolean?)
+				conn = self:Connect(function(...: T...)
 					if conn.Connected then
 						conn:Disconnect()
-						fn(active, pressed)
+						fn(...)
 					end
 				end)
 
 				return conn
 			end,
 
-			Wait = function(self: IAS.IAScriptSignal<T>): (T, boolean?)
+			Wait = function(self: IAS.IAScriptSignal<T...>): T...
 				local thread = coroutine.running()
 				local conn: IAS.IAScriptConnection
 
-				conn = self:Connect(function(active: T, pressed: boolean?)
+				conn = self:Connect(function(...: T...)
 					if conn.Connected then
 						conn:Disconnect()
 					end
-					task.spawn(thread, active, pressed)
+					task.spawn(thread, ...)
 				end)
 
 				return coroutine.yield()
 			end,
 
-			Fire = function(self: IAS.IAScriptSignal<T>, active: T, pressed: boolean?)
+			Fire = function(self: IAS.IAScriptSignal<T...>, ...: T...)
 				local node = head
 				while node do
 					local fn = node.fn
 					node = node.next
 					if fn then
-						task.spawn(fn, active, pressed)
+						task.spawn(fn, ...)
 					end
 				end
 			end,
 
-			DisconnectAll = function(self: IAS.IAScriptSignal<T>)
+			DisconnectAll = function(self: IAS.IAScriptSignal<T...>)
 				local node = head
 				while node do
 					node.fn = nil

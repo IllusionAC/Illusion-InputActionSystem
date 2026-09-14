@@ -34,7 +34,7 @@ Hey developers! I'm really excited to share you my **InputActionSystem** library
 Add to your `wally.toml`:
 ```toml
 [dependencies]
-IllusionIAS = "illusionac/illusion-inputactionsystem@^1.1.0"
+IllusionIAS = "illusionac/illusion-inputactionsystem@^1.2.0"
 ```
 
 Place the module in `ReplicatedStorage` (or via Wally `Packages`) and require it in any LocalScript:
@@ -84,9 +84,10 @@ IIAS.removeAllFromContext(name: string)            -- Empty a context group with
 :SetUIButton(button: GuiButton?)                -- Link a GUI button as alternate input
 :SetUIModifier(button: GuiButton?)              -- Link a GUI button as modifier
 :GetUIModifier()                                -- Get linked modifier GUI button
-:SetCooldown(cooldown: number)                  -- Set cooldown in seconds (default: 0)
-:ResetCooldown()                                -- Manually reset cooldown
-:CooldownEnded()                                -- boolean: true when cooldown is not active
+:SetCooldown(cooldown: number | boolean, startImmediately: boolean?) -- Set cooldown in seconds, or boolean for manual cooldown (default: 0)
+:StartCooldown(duration: number?)               -- Programmatically start timed cooldown immediately
+:ResetCooldown()                                -- Manually reset cooldown (timed and manual)
+:IsInCooldown()                                 -- boolean: true when cooldown is active
 :SetEnabled(enabled: boolean)                   -- Enable/disable the bind
 :IsEnabled()                                    -- Check if bind is enabled (:IsEnable is an alias)
 :SetTapActivation(taps: number, window: number) -- Require N taps within time window
@@ -173,8 +174,8 @@ IIAS.removeAllFromContext(name: string)            -- Empty a context group with
 ## Utilities / Introspection
 
 ```lua
-:GetCooldownRemaining() -- number: seconds remaining on the current cooldown (0 if none)
-:CooldownEnded()        -- boolean: true when cooldown is inactive, false while active
+:GetCooldownRemaining() -- number: seconds remaining on the current cooldown (0 if none, math.huge if manual)
+:IsInCooldown()         -- boolean: true when cooldown is active
 :IsBuffered()           -- boolean: whether an input is currently buffered
 :ResetBuffer()          -- void: clears any buffered input
 :GetBufferedVariant()   -- variant?: the buffered value, if present
@@ -193,10 +194,12 @@ Keybind.Enabled           -- Whether bind is enabled
 Keybind.Priority          -- InputContext priority
 Keybind.Sink              -- InputContext sinkability
 Keybind.Hold              -- Hold mode state
-Keybind.Cooldown          -- Cooldown duration
 Keybind.Activated         -- IAScriptSignal event (active, pressed)
 Keybind.Started           -- IAScriptSignal event, fired on input start
 Keybind.Ended             -- IAScriptSignal event, fired on input end
+Keybind.Cooldown.Value    -- Cooldown duration
+Keybind.Cooldown.Began     -- IAScriptSignal event, fired when cooldown becomes active
+Keybind.Cooldown.Completed -- IAScriptSignal event, fired when cooldown completes/inactivates
 Keybind.Scale             -- InputBinding Scale
 Keybind.VectorScale       -- InputBinding VectorScale
 Keybind.ResponseCurve     -- InputBinding ResponseCurve
@@ -206,7 +209,7 @@ Keybind.PointerIndex      -- InputBinding PointerIndex
 Keybind.ClampMagnitudeToOne -- InputBinding ClampMagnitudeToOne
 ```
 
-The `Activated`, `Started`, and `Ended` events work like standard Roblox signals with `:Connect()`, `:Once()`, `:Wait()`, and `:Fire()` methods.
+All IAScriptSignals (`Activated`, `Started`, `Ended`, `Cooldown.Began`, `Cooldown.Completed`) work like standard Roblox signals with `:Connect()`, `:Once()`, `:Wait()`, and `:Fire()` methods.
 
 ---
 
@@ -265,7 +268,7 @@ bind:SetCooldown(2)
 bind:SetTapActivation(2, 0.5)
 
 bind.Activated:Connect(function(active, pressed)
-    if not bind:CooldownEnded() then return end
+    if bind:IsInCooldown() then return end
     print("Bind state:", active, "| Key pressed:", pressed)
 end)
 ```

@@ -14,7 +14,7 @@ local IASignal = require("@self/IllusionSignal")
 local BindUtils = require("@self/BindUtils")
 
 export type IAScriptConnection = IAS.IAScriptConnection
-export type IAScriptSignal<T = variant> = IAS.IAScriptSignal<T>
+export type IAScriptSignal<T... = ()> = IAS.IAScriptSignal<T...>
 export type variant = IAS.variant
 export type Bind = IAS.Bind
 export type Binds = IAS.Binds
@@ -23,7 +23,7 @@ export type Context = IAS.Context
 export type Contexts = IAS.Contexts
 export type IllusionIAS = IAS.IllusionIAS
 export type supposedKeyCode = IAS.supposedKeyCode
-export type func<T = variant> = IAS.func<T>
+export type func<T... = ()> = IAS.func<T...>
 
 @native local function getBindFolder(): Folder
 	local existing = script:FindFirstChild("BindFolder")
@@ -174,8 +174,6 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 		PressedThreshold = 0.5,
 		ReleasedThreshold = 0.2,
 
-		Cooldown = 0,
-
 		TapRequired = 1,
 		TapWindow = 0,
 
@@ -185,14 +183,24 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 		Activated = IASignal.new(),
 		Started = IASignal.new(),
 		Ended = IASignal.new(),
+
+		Cooldown = {
+			Value = 0,
+			Began = IASignal.new(),
+			Completed = IASignal.new(),
+		}
 	} :: BindingObject
 
 	local stateConnections: { [string]: RBXScriptConnection } = {}
 
 	local _PrevBinds = BindUtils.Clone(self.Binds)
 
+	local destroyed = false
 	local _ToggleState = false
 	local _CooldownUntil = 0
+	local _ManualCooldown = false
+	local _IsOnCooldown = false
+	local _CooldownTimer: thread? = nil
 	local _LastTapTime = 0
 	local _TapCount = 0
 
@@ -222,6 +230,48 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 		end
 	end
 
+	local function isCooldownActive(): boolean
+		if _ManualCooldown then return true end
+		if self.Cooldown.Value > 0 and os.clock() < _CooldownUntil then return true end
+		return false
+	end
+
+	local function checkCooldownBegan()
+		if _IsOnCooldown then return end
+		if not isCooldownActive() then return end
+		_IsOnCooldown = true
+		self.Cooldown.Began:Fire()
+	end
+
+	local function checkCooldownCompleted()
+		if not _IsOnCooldown then return end
+		if isCooldownActive() then return end
+		_IsOnCooldown = false
+		if _CooldownTimer then
+			task.cancel(_CooldownTimer)
+			_CooldownTimer = nil
+		end
+		self.Cooldown.Completed:Fire()
+	end
+
+	local function startTimedCooldown(duration: number)
+		if duration <= 0 then return end
+		local now = os.clock()
+		_CooldownUntil = now + duration
+		checkCooldownBegan()
+
+		if _CooldownTimer then
+			task.cancel(_CooldownTimer)
+			_CooldownTimer = nil
+		end
+
+		_CooldownTimer = task.delay(duration, function()
+			if destroyed then return end
+			_CooldownTimer = nil
+			checkCooldownCompleted()
+		end)
+	end
+
 	local function tryConsumeBuffer(): boolean
 		if not _Buffered then return false end
 
@@ -238,7 +288,7 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 			return false
 		end
 
-		if self.Cooldown > 0 and now < _CooldownUntil then
+		if isCooldownActive() then
 			_Buffered = false
 			_BufferedBindName = nil
 			_BufferedKey = Enum.KeyCode.None
@@ -266,12 +316,12 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 
 		if self.Hold then
 			fire(activeValue, true)
-			if self.Cooldown > 0 then _CooldownUntil = now + self.Cooldown end
+			if self.Cooldown.Value > 0 then startTimedCooldown(self.Cooldown.Value) end
 			return true
 		else
 			_ToggleState = not _ToggleState
 			fire(if _ToggleState then activeValue else inactiveValue, true)
-			if _ToggleState and self.Cooldown > 0 then _CooldownUntil = now + self.Cooldown end
+			if _ToggleState and self.Cooldown.Value > 0 then startTimedCooldown(self.Cooldown.Value) end
 			return true
 		end
 	end
@@ -346,7 +396,7 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 							end
 						end
 
-						if self.Cooldown > 0 and now < _CooldownUntil then
+						if isCooldownActive() then
 							_TapCount = 0
 							fire(inactiveValue, true)
 							blockedPresses[bindName] = true
@@ -362,14 +412,14 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 
 						if self.Hold then
 							fire(activeValue, true)
-							if self.Cooldown > 0 then
-								_CooldownUntil = now + self.Cooldown
+							if self.Cooldown.Value > 0 then
+								startTimedCooldown(self.Cooldown.Value)
 							end
 						else
 							_ToggleState = not _ToggleState
 							fire(if _ToggleState then activeValue else inactiveValue, true)
-							if _ToggleState and self.Cooldown > 0 then
-								_CooldownUntil = now + self.Cooldown
+							if _ToggleState and self.Cooldown.Value > 0 then
+								startTimedCooldown(self.Cooldown.Value)
 							end
 						end
 
@@ -408,15 +458,15 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 					return
 
 				elseif InputType == Enum.InputActionType.ViewportPosition then
-					if self.Cooldown > 0 and now < _CooldownUntil then
+					if isCooldownActive() then
 						fire(Vector2.zero, false)
 						return
 					end
 
 					fire(variant, pressed)
 
-					if pressed and self.Cooldown > 0 then
-						_CooldownUntil = now + self.Cooldown
+					if pressed and self.Cooldown.Value > 0 then
+						startTimedCooldown(self.Cooldown.Value)
 					end
 
 					return
@@ -435,7 +485,6 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 	end)
 
 	local rebuilding = false
-	local destroyed = false
 
 	local function rebuild()
 		if rebuilding or destroyed or not InputContext then return end
@@ -586,16 +635,42 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 		return self.UIModifier
 	end
 
-	function self:SetCooldown(cooldown: number)
-		self.Cooldown = math.max(0, cooldown)
+	function self:SetCooldown(cooldown: number | boolean, startImmediately: boolean?)
+		if typeof(cooldown) == "boolean" then
+			_ManualCooldown = cooldown
+			if cooldown then
+				checkCooldownBegan()
+			else
+				checkCooldownCompleted()
+			end
+		else
+			self.Cooldown.Value = math.max(0, cooldown)
+			if startImmediately == true and self.Cooldown.Value > 0 then
+				startTimedCooldown(self.Cooldown.Value)
+			end
+		end
+	end
+
+	function self:StartCooldown(duration: number?)
+		local d = if duration ~= nil then math.max(0, duration) else self.Cooldown.Value
+		if d > 0 then
+			startTimedCooldown(d)
+		end
 	end
 
 	function self:ResetCooldown()
+		if _CooldownTimer then
+			task.cancel(_CooldownTimer)
+			_CooldownTimer = nil
+		end
 		_CooldownUntil = 0
+		_ManualCooldown = false
+		checkCooldownCompleted()
 	end
 
-	function self:CooldownEnded(): boolean
-		return self:GetCooldownRemaining() <= 0
+	function self:IsInCooldown(): boolean
+		if _ManualCooldown then return true end
+		return not (self:GetCooldownRemaining() <= 0)
 	end
 
 	function self:SetTapActivation(requiredTaps: number, tapWindow: number)
@@ -731,6 +806,7 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 	end
 
 	function self:GetCooldownRemaining(): number
+		if _ManualCooldown then return math.huge end
 		local now = os.clock()
 		return math.max(0, _CooldownUntil - now)
 	end
@@ -1209,9 +1285,17 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 			InputContext:Destroy()
 		end
 
+		if _CooldownTimer then
+			task.cancel(_CooldownTimer)
+			_CooldownTimer = nil
+		end
+		_IsOnCooldown = false
+
 		self.Activated:DisconnectAll()
 		self.Started:DisconnectAll()
 		self.Ended:DisconnectAll()
+		self.Cooldown.Began:DisconnectAll()
+		self.Cooldown.Completed:DisconnectAll()
 
 		activeBinds[name] = nil
 

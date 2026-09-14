@@ -8,25 +8,25 @@
 
 export type variant = boolean | number | Vector2 | Vector3
 
-export type func<T = variant> = (active: T, pressed: boolean?) -> ()
+export type func<T... = ()> = (T...) -> ()
 
 export type IAScriptConnection = {
 	Connected: boolean,
 	Disconnect: (self: IAScriptConnection) -> (),
 }
 
-export type IAScriptSignal<T = variant> = {
-	Connect: (self: IAScriptSignal<T>, fn: func<T>) -> IAScriptConnection,
-	Once: (self: IAScriptSignal<T>, fn: func<T>) -> IAScriptConnection,
-	Fire: (self: IAScriptSignal<T>, active: T, pressed: boolean?) -> (),
-	Wait: (self: IAScriptSignal<T>) -> (T, boolean?),
-	DisconnectAll: (self: IAScriptSignal<T>) -> (),
+export type IAScriptSignal<T... = ()> = {
+	Connect: (self: IAScriptSignal<T...>, fn: func<T...>) -> IAScriptConnection,
+	Once: (self: IAScriptSignal<T...>, fn: func<T...>) -> IAScriptConnection,
+	Fire: (self: IAScriptSignal<T...>, T...) -> (),
+	Wait: (self: IAScriptSignal<T...>) -> T...,
+	DisconnectAll: (self: IAScriptSignal<T...>) -> (),
 }
 
-export type Node<T = variant> = {
-	fn: func<T>?,
-	next: Node<T>?,
-	prev: Node<T>?,
+export type Node<T... = ()> = {
+	fn: func<T...>?,
+	next: Node<T...>?,
+	prev: Node<T...>?,
 }
 
 export type supposedKeyCode = Enum.KeyCode | string
@@ -88,17 +88,21 @@ export type BindingObject<T = variant> = {
 	PressedThreshold: number,
 	ReleasedThreshold: number,
 
-	Cooldown: number,
-
 	TapRequired: number,
 	TapWindow: number,
 
 	InputBufferEnabled: boolean,
 	InputBufferTime: number,
 
-	Activated: IAScriptSignal<T>,
+	Activated: IAScriptSignal<T, boolean>,
 	Started: IAScriptSignal<T>,
 	Ended: IAScriptSignal<T>,
+
+	Cooldown: {
+		Value: number,
+		Began: IAScriptSignal,
+		Completed: IAScriptSignal,
+	},
 
 	Fire: (self: BindingObject<T>, active: T, pressed: boolean) -> (),
 
@@ -107,9 +111,10 @@ export type BindingObject<T = variant> = {
 	SetUIModifier: (self: BindingObject<T>, button: GuiButton?) -> (),
 	GetUIModifier: (self: BindingObject<T>) -> GuiButton?,
 	SetTapActivation: (self: BindingObject<T>, requiredTaps: number, tapWindow: number) -> (),
-	SetCooldown: (self: BindingObject<T>, cooldown: number) -> (),
+	SetCooldown: (self: BindingObject<T>, cooldown: number | boolean, startImmediately: boolean?) -> (),
+	StartCooldown: (self: BindingObject<T>, duration: number?) -> (),
 	ResetCooldown: (self: BindingObject<T>) -> (),
-	CooldownEnded: (self: BindingObject<T>) -> boolean,
+	IsInCooldown: (self: BindingObject<T>) -> boolean,
 
 	SetEnabled: (self: BindingObject<T>, bool: boolean) -> (),
 	IsEnabled: (self: BindingObject<T>) -> boolean,
