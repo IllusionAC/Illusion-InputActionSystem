@@ -31,6 +31,7 @@
   - [BindingObject Properties](#bindingobject-properties)
   - [Signals & Event Payloads](#signals--event-payloads)
 - [Practical Examples](#-practical-examples)
+- [State Machine & Activation Lifecycle](#-state-machine--activation-lifecycle)
 - [License & Support](#-license--support)
 
 ---
@@ -637,6 +638,77 @@ attack.Activated:Connect(function(active: boolean, pressed: boolean)
     end
 end)
 ```
+
+---
+
+## 🔄 State Machine & Activation Lifecycle
+
+IIAS translates raw player interactions into two core parameters delivered to event listeners:
+- **`active: variant`**: The current payload value representing action magnitude, vector, or boolean state (`boolean`, `number`, `Vector2`, or `Vector3`).
+- **`pressed: boolean`**: Whether the input transition is initiating (`true`, key down / button press) or terminating (`false`, key up / button release).
+
+The state machine diagram below illustrates how inputs transition across **Hold Mode**, **Toggle Mode**, and **Cooldown Blocked** states:
+
+### State Diagram
+
+```mermaid
+stateDiagram-v2
+    [*] --> Idle
+
+    state "Idle (Inactive Base)" as Idle
+    state "Hold: Active (Held)" as HoldActive
+    state "Toggle: Active (Key Held)" as ToggleActiveHeld
+    state "Toggle: Active (Sustained)" as ToggleActiveIdle
+    state "Toggle: Inactive (Key Held)" as ToggleInactiveHeld
+    state "Cooldown Blocked" as Blocked
+
+    Idle --> HoldActive : [Hold Mode] Key Down\npressed = true | active = Active Value
+    HoldActive --> Idle : [Hold Mode] Key Up\npressed = false | active = Inactive Base
+
+    Idle --> ToggleActiveHeld : [Toggle Mode] 1st Press (Turn ON)\npressed = true | active = Active Value
+    ToggleActiveHeld --> ToggleActiveIdle : [Toggle Mode] 1st Release\npressed = false | active = Active Value
+    ToggleActiveIdle --> ToggleInactiveHeld : [Toggle Mode] 2nd Press (Turn OFF)\npressed = true | active = Inactive Base
+    ToggleInactiveHeld --> Idle : [Toggle Mode] 2nd Release\npressed = false | active = Inactive Base
+
+    Idle --> Blocked : Key Down while IsInCooldown()\npressed = true | active = Inactive Base
+    Blocked --> Idle : Key Up\npressed = false | active = Inactive Base
+```
+
+---
+
+### Variant Value Reference (Has Value vs Inactive Base)
+
+Depending on the `InputActionType`, the payload values for "Active (Has Value)" versus "Inactive Base (No Value)" are:
+
+| InputActionType | Inactive Base ("No Value") | Active ("Has Value") | Engine `pressed` Evaluation |
+|---|---|---|---|
+| `Bool` | `false` | `true` | `variant == true` |
+| `Direction1D` | `0` | Number `~= 0` (e.g. `1`, `-1`, analog throttle) | `variant ~= 0` |
+| `Direction2D` | `Vector2.zero` | Non-zero `Vector2` (e.g. `(0, 1)`, thumbstick) | `variant ~= Vector2.zero` |
+| `Direction3D` | `Vector3.zero` | Non-zero `Vector3` (e.g. `(0, 0, 1)`) | `variant ~= Vector3.zero` |
+| `ViewportPosition` | `Vector2.zero` *(on cooldown)* | Screen coordinate `Vector2(x, y)` | Mouse / touch button held down |
+
+---
+
+### Comprehensive State Machine Truth Table
+
+The following table presents **every case** where `pressed` is `true` or `false`, whether `active` carries a value, which lifecycle signals fire, and what `bind.Active` holds:
+
+| Scenario / Transition | Trigger Event | `pressed` | `active` / `bind.Active` (by Variant) | Signals Fired | Explanation |
+|---|---|---|---|---|---|
+| **Hold: Press** | Key / Button Down | `true` | **Has Value**:<br>• `Bool`: `true`<br>• `Dir1D`: `number ~= 0`<br>• `Dir2D`: `Vector2 ~= zero`<br>• `Dir3D`: `Vector3 ~= zero` | `Activated(active, true)`<br>`Started(active)` | Player presses the key down. Action becomes immediately active and triggers cooldown timer if configured. |
+| **Hold: Release** | Key / Button Up | `false` | **No Value (Base)**:<br>• `Bool`: `false`<br>• `Dir1D`: `0`<br>• `Dir2D`: `Vector2.zero`<br>• `Dir3D`: `Vector3.zero` | `Activated(base, false)`<br>`Ended(base)` | Player releases the key. Action resets to inactive base value and attempts to consume any buffered input. |
+| **Toggle: 1st Press (Turn ON)** | Key / Button Down | `true` | **Has Value**:<br>• `Bool`: `true`<br>• `Dir1D`: `number ~= 0`<br>• `Dir2D`: `Vector2 ~= zero`<br>• `Dir3D`: `Vector3 ~= zero` | `Activated(active, true)`<br>`Started(active)` | Toggles state from OFF to ON. Action becomes active and starts cooldown if configured. |
+| **Toggle: 1st Release (Sustained ON)** | Key / Button Up | `false` | **Has Value**:<br>• `Bool`: `true`<br>• `Dir1D`: `variant`<br>• `Dir2D`: `variant`<br>• `Dir3D`: `variant` | `Activated(active, false)`<br>`Ended(active)` | Physical key is released, but toggle state remains **ON**. Note: `active` still has value while `pressed == false`! |
+| **Toggle: 2nd Press (Turn OFF)** | Key / Button Down | `true` | **No Value (Base)**:<br>• `Bool`: `false`<br>• `Dir1D`: `0`<br>• `Dir2D`: `Vector2.zero`<br>• `Dir3D`: `Vector3.zero` | `Activated(base, true)`<br>`Started(base)` | Toggles state from ON to OFF. Key was pressed down (`pressed = true`), but the resulting action state is inactive. |
+| **Toggle: 2nd Release (Sustained OFF)** | Key / Button Up | `false` | **No Value (Base)**:<br>• `Bool`: `false`<br>• `Dir1D`: `0`<br>• `Dir2D`: `Vector2.zero`<br>• `Dir3D`: `Vector3.zero` | `Activated(base, false)`<br>`Ended(base)` | Physical key released after turning toggle OFF. Action remains at inactive base value. |
+| **Cooldown: Press Blocked** | Key Down during active cooldown | `true` | **No Value (Base)**:<br>• `Bool`: `false`<br>• `Dir1D`: `0`<br>• `Dir2D`: `Vector2.zero`<br>• `Dir3D`: `Vector3.zero` | `Activated(base, true)`<br>`Started(base)` | Input attempted while on cooldown (`IsInCooldown() == true`). Action activation is blocked; returns base inactive value. |
+| **Cooldown: Release after Block** | Key Up after blocked press | `false` | **No Value (Base)**:<br>• `Bool`: `false`<br>• `Dir1D`: `0`<br>• `Dir2D`: `Vector2.zero`<br>• `Dir3D`: `Vector3.zero` | `Activated(base, false)`<br>`Ended(base)` | Releases the key after a blocked attempt. Restores normal state without consuming buffers or triggering actions. |
+| **ViewportPosition: Moving** | Pointer moves across screen | `false` | **Has Value**:<br>• Screen `Vector2(x, y)` | `Activated(pos, false)`<br>`Ended(pos)` | Mouse or pointer is moving without clicking. `active` carries current cursor screen coordinates. |
+| **ViewportPosition: Clicking / Dragging** | Pointer button held down | `true` | **Has Value**:<br>• Screen `Vector2(x, y)` | `Activated(pos, true)`<br>`Started(pos)` | Mouse button or touch contact is held down at screen coordinates. Starts cooldown if configured. |
+| **ViewportPosition: On Cooldown** | Pointer interaction during cooldown | `false` | **No Value (Base)**:<br>• `Vector2.zero` | `Activated(Vector2.zero, false)`<br>`Ended(Vector2.zero)` | Suppresses pointer tracking and emits `Vector2.zero`. |
+| **Tap Sequence: Intermediate Tap** | Tap `N < TapRequired` | *(None)* | *(None)* | *(None)* | When `TapRequired > 1`, inputs before the required count are swallowed and do not fire signals. |
+| **Manual `:Fire(active, pressed)`** | Script calls `:Fire(...)` | As passed (`true` / `false`) | As passed (`active`) | `Activated(active, pressed)`<br>`Started` if `pressed`<br>`Ended` if not `pressed` | Programmatic invocation directly forwards provided values to signals and sets `bind.Active`. |
 
 ---
 
