@@ -1,219 +1,535 @@
-# <div align="center"> Illusion's InputActionSystem </div>
+# <div align="center"> Illusion's InputActionSystem (IIAS) </div>
 
 <div align="center">
 
-![IIASLogo|256x256, 75%](./IIASLogo.png) 
+![IIASLogo|256x256, 75%](./IIASLogo.png)
 </div>
 
-Hey developers! I'm really excited to share you my **InputActionSystem** library.  If you're working with Roblox's new InputActionSystem or just need robust keybind management, this library will save you hours of development time.
+[![Wally Version](https://img.shields.io/badge/wally-v1.2.0-blue.svg)](https://wally.run/package/illusionac/illusion-inputactionsystem)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+**Illusion's InputActionSystem (IIAS)** is a powerful, production-ready input and keybind management library built for Roblox's modern **InputActionSystem (IAS)** engine architecture. It provides an intuitive, high-level API over native `InputContext`, `InputAction`, and `InputBinding` instances while adding game-ready mechanics like dynamic cooldowns, input buffering, double-tap activation, context groups, mobile GUI integration, and lifecycle signals.
 
 ---
 
-## Key Features
+## 📑 Table of Contents
 
-- **Flexible Input Types**: Define actions as Hold or Toggle buttons
-- **Multi-Key Support**: Assign multiple keys per action for full gamepad compatibility
-- **Key Combinations**: Create complex actions using modifier keys (e.g., Shift + F)
-- **UI Integration**: Connect keybinds to GuiButtons for seamless mobile support
-- **Cooldown System**: Prevent action spam with customizable cooldowns
-- **Input Buffering**: Capture inputs even during busy frames
-- **Tap Detection**: Trigger actions with double-tap or multi-tap sequences
-- **Priority & Sinking**: Fine control over input processing order
-- **Full Roblox IAS Synchronization**: Support for `PreferredBinding`, `InputActionLabel`, `InputBindingType`, and all 5 `InputActionType` modes (`Bool`, `Direction1D`, `Direction2D`, `Direction3D`, `ViewportPosition`)
+- [Key Features](#-key-features)
+- [Installation](#-installation)
+- [Quick Start](#-quick-start)
+- [Core Concepts](#-core-concepts)
+  - [Hold vs Toggle Modes](#1-hold-vs-toggle-modes)
+  - [Cooldown System & Lifecycle Signals](#2-cooldown-system--lifecycle-signals)
+  - [Context Groups](#3-context-groups)
+  - [Input Buffering](#4-input-buffering)
+  - [Multi-Tap Activation](#5-multi-tap-activation)
+  - [GUI Button Integration (Mobile Support)](#6-gui-button-integration-mobile-support)
+  - [Directional & Composite Vector Actions](#7-directional--composite-vector-actions)
+- [API Reference](#-api-reference)
+  - [IIAS Static Functions](#iias-static-functions)
+  - [BindingObject Methods](#bindingobject-methods)
+  - [BindingObject Properties](#bindingobject-properties)
+  - [Signals & Event Payloads](#signals--event-payloads)
+- [Practical Examples](#-practical-examples)
+- [License & Support](#-license--support)
 
 ---
 
-## Installation
-### Non Server Authority version:
+## ✨ Key Features
 
-**Option 1:** [Download from Creator Store](https://create.roblox.com/store/asset/92059655869452/Illusions-InputActionSystem-Module)
+- **Roblox IAS Engine Integration**: Automatically manages underlying `InputContext`, `InputAction`, and `InputBinding` instances.
+- **Flexible InputActionTypes**: Full support for `Bool`, `Direction1D`, `Direction2D`, `Direction3D`, and `ViewportPosition`.
+- **Flexible Key Representations**: Pass either `Enum.KeyCode` items or string names (`"E"`, `"MouseButton1"`, `"MouseButton2"`, `"Touch"`).
+- **Hold & Toggle Modes**: Seamlessly switch between hold-to-activate and state-toggling inputs.
+- **Multi-Binding & Modifiers**: Bind primary keys, alternate keys, and key combinations with primary & secondary modifiers (e.g., `Shift + F`, `Ctrl + Alt + E`).
+- **Dynamic & Timed Cooldowns**: Configure fixed numeric cooldowns or control cooldowns manually via booleans with `.Began` and `.Completed` lifecycle signals.
+- **Input Buffering**: Capture inputs during active cooldowns or busy frames and consume them automatically when available.
+- **Tap Sequences**: Trigger actions only after sequences like double-tapping within a configurable time window.
+- **Context Groups**: Group related keybinds into contexts (e.g., `"Combat"`, `"Vehicle"`, `"Menu"`) to enable/disable them simultaneously.
+- **GUI Mobile Integration**: Connect Roblox `GuiButton` instances directly as alternate inputs or modifiers for touch/mobile platforms.
+- **ControlHints Support**: Integrated helper for displaying ZurichBT's ControlHints UI.
 
-**Option 2:** [Clone from GitHub](https://github.com/IllusionAC/Illusion-InputActionSystem)
+---
 
-**Option 3:** Wally Package Manager
-Add to your `wally.toml`:
+## 📦 Installation
+
+> [!NOTE]
+> IIAS is designed to run on the client (`LocalScript` or client Actors) where player inputs and Roblox `InputContext` instances are processed.
+
+### Option 1: Wally (Recommended)
+
+Add IIAS to your `wally.toml`:
+
 ```toml
 [dependencies]
 IllusionIAS = "illusionac/illusion-inputactionsystem@^1.2.0"
 ```
 
-Place the module in `ReplicatedStorage` (or via Wally `Packages`) and require it in any LocalScript:
+Then install with `wally install`.
+
+### Option 2: Roblox Creator Store
+
+Download the pre-packaged Roblox model from the [Creator Store](https://create.roblox.com/store/asset/92059655869452/Illusions-InputActionSystem-Module).
+
+### Option 3: GitHub & Rojo
+
+Clone the repository directly into your project:
+
+```bash
+git clone https://github.com/IllusionAC/Illusion-InputActionSystem.git
+```
+
+Require the module in a `LocalScript`:
 
 ```lua
-local IAS = require(game.ReplicatedStorage.IllusionIAS)
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local IIAS = require(ReplicatedStorage.IllusionIAS)
 -- Or if using Wally:
--- local IAS = require(game.ReplicatedStorage.Packages.IllusionIAS)
-```
-
-### Server Authority version:
-
-(NOT RECOMMENDED)
-Do the same steps as for normal version, but require the module from a Server Script.
-
-(The current state of the module doesn't really allow Server Authority usage. I'm currently trying to find a way to implement it, which may require entire rework of the module. Feel free to propose solutions)
-
----
-
-## API Reference
-
-### Create, Manage and Give Contexts to Binds
-
-```lua
-IIAS.new(name: string, InputType: Enum.InputActionType?) -- Create a new keybind, set an InputActionType (default: Bool)
-IIAS.Get(name: string)                                   -- Retrieve a specific bind (alias of .get)
-IIAS.GetAll()                                            -- Get all registered binds (alias of .getAll)
-IIAS.enableControlHints(module: Instance | string, parent: Instance | PlayerGui?)
-                                                         -- Enable ControlHints - By ZurichBT
-
--- IMPORTANT: Context here organizes your binds logically.
-IIAS.addContext(name: string, ...Object)           -- Add Binds to a context group
-IIAS.getContext(name: string)                      -- Returns a context group table
-IIAS.newContext(name: string)                      -- Create a new context group
-IIAS.enableContext(name: string, enabled: boolean) -- Enable or disable all binds in the context group
-IIAS.isContextEnabled(name: string)                -- Returns the context group enabled state
-IIAS.clearContexts()                               -- Clear all context groups
-IIAS.removeContext(name: string)                   -- Remove a context group
-IIAS.removeFromContext(name: string, bind: Object) -- Remove a bind from a context group
-IIAS.removeAllFromContext(name: string)            -- Empty a context group without deleting it
-```
-
-### Configuration Methods
-
-```lua
-:SetHold(hold: boolean)                         -- true = hold to activate, false = toggle
-:SetUIButton(button: GuiButton?)                -- Link a GUI button as alternate input
-:SetUIModifier(button: GuiButton?)              -- Link a GUI button as modifier
-:GetUIModifier()                                -- Get linked modifier GUI button
-:SetCooldown(cooldown: number | boolean, startImmediately: boolean?) -- Set cooldown in seconds, or boolean for manual cooldown (default: 0)
-:StartCooldown(duration: number?)               -- Programmatically start timed cooldown immediately
-:ResetCooldown()                                -- Manually reset cooldown (timed and manual)
-:IsInCooldown()                                 -- boolean: true when cooldown is active
-:SetEnabled(enabled: boolean)                   -- Enable/disable the bind
-:IsEnabled()                                    -- Check if bind is enabled (:IsEnable is an alias)
-:SetTapActivation(taps: number, window: number) -- Require N taps within time window
-```
-
-### Input Context Control
-
-```lua
-:SetPriority(priority: number)           -- Set processing priority
-:GetPriority()                           -- Get current priority
-:SetSink(sink: boolean)                  -- Set if input should sink
-:GetSink()                               -- Get sink state
-```
-
-### Input Buffering
-
-```lua
-:SetInputBufferEnabled(enabled: boolean) -- Enable input buffering (default: false)
-:SetInputBufferTime(time: number)        -- Buffer window in seconds (default: 0.15)
-```
-
-### Keybind Management
-
-```lua
-:AddBind(mainKey, primaryMod?, secondaryMod?, uiButton?, uiModifier?, displayName?, displayImage?, bindingType?)
-                                                         -- Add a keybind with optional modifiers and configuration
-:SetBind(mainKey, primaryMod?, secondaryMod?, uiButton?, uiModifier?, displayName?, displayImage?, bindingType?)
-                                                         -- Replace all binds with a single bind
-:GetBinds()                                              -- Get all current keybinds table
-:RemoveBind(mainKey, primaryMod?, secondaryMod?)         -- Remove a specific keybind
-:EditBind(oldMain, oldMods, newMain, newMods)            -- Edit an existing keybind
-:ClearBinds()                                            -- Remove all keybinds
-:Destroy()                                               -- Delete the bind and its Roblox instances entirely
-:SetCompositeDirections(up, down, left, right, forward, backward) -- Sets composite directions for directional actions
-:GetCompositeDirections()                                -- Returns table with Up, Down, Left, Right, Forward, Backward
-:SetCompositeModifiers(primaryModifier, secondaryModifier) -- Sets composite modifiers
-:GetCompositeModifiers()                                 -- Returns table with PrimaryModifier, SecondaryModifier
-```
-
-### Display & Label Helpers
-
-```lua
-:SetDisplayName(mainKey, displayName: string)   -- Set custom display text on InputBinding
-:GetDisplayName(mainKey)                        -- Get display text of binding
-:SetDisplayImage(mainKey, displayImage: any)    -- Set custom image content on InputBinding
-:GetDisplayImage(mainKey)                       -- Get image content of binding
-:SetBindingType(mainKey, bindingType: Enum.InputBindingType) -- Set Automatic or Scriptable
-:GetBindingType(mainKey)                        -- Get binding type
-:CreateActionLabel(parent?: Instance)           -- Creates a native Roblox InputActionLabel bound to this action
-```
-
-### Engine Instance Access
-
-```lua
-:GetInputAction()      -- Returns underlying Roblox InputAction instance
-:GetInputContext()      -- Returns underlying Roblox InputContext instance
-:GetInputBinding(key?) -- Returns specific child InputBinding instance
-:GetPreferredBinding() -- Returns the active InputBinding currently driving the action
-```
-
-### InputActionType Management
-
-```lua
-:Fire(active, pressed)           -- Fire the bind manually
-:GetState()                      -- Returns active state matching action type
-:SetScale(scale)                 -- Set Scale for Directions
-:GetScale()                      -- Get Scale for Directions
-:SetVectorScale(vector)          -- Set VectorScale for Direction2D / Direction3D
-:GetVectorScale()                -- Get VectorScale for Direction2D / Direction3D
-:SetResponseCurve(curve)         -- Set ResponseCurve for Directions
-:GetResponseCurve()              -- Get ResponseCurve for Directions
-:SetPressedThreshold(threshold)  -- Set Pressed Threshold for Bool
-:GetPressedThreshold()           -- Get Pressed Threshold for Bool
-:SetReleasedThreshold(threshold) -- Set Released Threshold for Bool
-:GetReleasedThreshold()          -- Get Released Threshold for Bool
-:SetPointerIndex(index)          -- Set PointerIndex
-:GetPointerIndex()               -- Get PointerIndex
-:SetClampMagnitudeToOne(bool)    -- Set ClampMagnitudeToOne
-:GetClampMagnitudeToOne()        -- Get ClampMagnitudeToOne
+-- local IIAS = require(ReplicatedStorage.Packages.IllusionIAS)
 ```
 
 ---
 
-## Utilities / Introspection
+## 🚀 Quick Start
+
+Here is a simple example creating an interaction bind in under 10 lines of code:
 
 ```lua
-:GetCooldownRemaining() -- number: seconds remaining on the current cooldown (0 if none, math.huge if manual)
-:IsInCooldown()         -- boolean: true when cooldown is active
-:IsBuffered()           -- boolean: whether an input is currently buffered
-:ResetBuffer()          -- void: clears any buffered input
-:GetBufferedVariant()   -- variant?: the buffered value, if present
-:GetBufferedKey()       -- Enum.KeyCode?: the buffered key code, if present
-:GetActiveBindCount()   -- number: how many binds are currently active
-:GetToggleState()       -- boolean: current toggle state for toggle-mode binds
-:GetActiveMainKey()     -- Enum.KeyCode?: which main key is currently active, if any
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local IIAS = require(ReplicatedStorage.IllusionIAS)
+
+-- 1. Create a new Bool action bind
+local interact = IIAS.new("Interact", Enum.InputActionType.Bool)
+
+-- 2. Add keyboard and gamepad binds
+interact:AddBind(Enum.KeyCode.E)
+interact:AddBind(Enum.KeyCode.ButtonX)
+
+-- 3. Configure mode (Hold to interact)
+interact:SetHold(true)
+
+-- 4. Listen for activation
+interact.Activated:Connect(function(active: boolean, pressed: boolean)
+    print("Interact state:", active, "| Pressed:", pressed)
+end)
 ```
-
-### Properties
-
-```lua
-Keybind.Name              -- The bind's name
-Keybind.Active            -- Current activation state
-Keybind.Enabled           -- Whether bind is enabled
-Keybind.Priority          -- InputContext priority
-Keybind.Sink              -- InputContext sinkability
-Keybind.Hold              -- Hold mode state
-Keybind.Activated         -- IAScriptSignal event (active, pressed)
-Keybind.Started           -- IAScriptSignal event, fired on input start
-Keybind.Ended             -- IAScriptSignal event, fired on input end
-Keybind.Cooldown.Value    -- Cooldown duration
-Keybind.Cooldown.Began     -- IAScriptSignal event, fired when cooldown becomes active
-Keybind.Cooldown.Completed -- IAScriptSignal event, fired when cooldown completes/inactivates
-Keybind.Scale             -- InputBinding Scale
-Keybind.VectorScale       -- InputBinding VectorScale
-Keybind.ResponseCurve     -- InputBinding ResponseCurve
-Keybind.PressedThreshold  -- InputBinding PressedThreshold
-Keybind.ReleasedThreshold -- InputBinding ReleasedThreshold
-Keybind.PointerIndex      -- InputBinding PointerIndex
-Keybind.ClampMagnitudeToOne -- InputBinding ClampMagnitudeToOne
-```
-
-All IAScriptSignals (`Activated`, `Started`, `Ended`, `Cooldown.Began`, `Cooldown.Completed`) work like standard Roblox signals with `:Connect()`, `:Once()`, `:Wait()`, and `:Fire()` methods.
 
 ---
 
-## Example: Sprint & Walk System
+## 🧠 Core Concepts
+
+### 1. Hold vs Toggle Modes
+
+Actions behave in one of two modes:
+- **Hold Mode (`:SetHold(true)`)**: The action is active as long as the input is held down. When pressed, `Activated` fires with `(activeValue, true)` and `Started` fires. When released, `Activated` fires with `(inactiveValue, false)` and `Ended` fires.
+- **Toggle Mode (`:SetHold(false)`)**: Each press toggles the internal state between active and inactive.
+
+```lua
+local flashlight = IIAS.new("Flashlight")
+flashlight:AddBind(Enum.KeyCode.F)
+flashlight:SetHold(false) -- Toggle mode
+
+flashlight.Activated:Connect(function(active: boolean)
+    print("Flashlight is now:", active and "ON" or "OFF")
+end)
+```
+
+---
+
+### 2. Cooldown System & Lifecycle Signals
+
+IIAS supports both **timed (automatic)** and **manual (dynamic)** cooldowns. Cooldown state is fully observable via lifecycle signals:
+
+#### Timed Cooldowns
+Set a numeric duration in seconds. When the action is triggered, it automatically enters cooldown and expires after the duration:
+
+```lua
+local dash = IIAS.new("Dash")
+dash:AddBind(Enum.KeyCode.Q)
+dash:SetCooldown(3) -- 3-second cooldown on activation
+
+-- Observe cooldown lifecycle
+dash.Cooldown.Began:Connect(function()
+    print("Dash on cooldown! Updating UI...")
+end)
+
+dash.Cooldown.Completed:Connect(function()
+    print("Dash ready! Re-enabling UI...")
+end)
+```
+
+#### Manual / Dynamic Cooldowns
+Control cooldowns manually via boolean flags (e.g., during animations, casting sequences, or server responses):
+
+```lua
+local castSpell = IIAS.new("CastSpell")
+castSpell:AddBind(Enum.KeyCode.R)
+
+-- Lock input immediately:
+castSpell:SetCooldown(true)
+
+-- Later, unlock input when the animation or cast completes:
+castSpell:SetCooldown(false) -- Fires Cooldown.Completed
+```
+
+#### Cooldown Query & Utility Methods
+- `bind:IsInCooldown()`: Returns `true` if currently on cooldown (timed or manual).
+- `bind:GetCooldownRemaining()`: Returns remaining seconds, or `math.huge` during manual cooldown (`0` if not on cooldown).
+- `bind:StartCooldown(duration?)`: Programmatically trigger a timed cooldown immediately.
+- `bind:ResetCooldown()`: Clears active cooldowns and fires `Cooldown.Completed`.
+
+---
+
+### 3. Context Groups
+
+Organize keybinds into logical groups (e.g., `"Combat"`, `"Inventory"`, `"Driving"`). Binds can belong to multiple contexts: if **any** context containing a bind is disabled, the bind is automatically disabled.
+
+```lua
+local attack = IIAS.new("Attack")
+local block = IIAS.new("Block")
+
+-- Add binds to a "Combat" context group
+IIAS.addContext("Combat", attack, block)
+
+-- Disable all combat actions when opening a menu:
+IIAS.enableContext("Combat", false)
+
+-- Check context status:
+print("Combat enabled:", IIAS.isContextEnabled("Combat"))
+
+-- Re-enable when closing the menu:
+IIAS.enableContext("Combat", true)
+```
+
+---
+
+### 4. Input Buffering
+
+Input buffering prevents lost inputs when a player presses a button shortly before a cooldown expires:
+
+```lua
+local comboAttack = IIAS.new("ComboAttack")
+comboAttack:AddBind(Enum.KeyCode.F)
+comboAttack:SetCooldown(1.5)
+
+-- Enable buffering with a 0.25-second window
+comboAttack:SetInputBufferEnabled(true)
+comboAttack:SetInputBufferTime(0.25)
+```
+
+If the player presses `F` within the last `0.25s` of the cooldown, the input is buffered and automatically executes the instant the cooldown ends!
+
+---
+
+### 5. Multi-Tap Activation
+
+Require multiple taps within a time window (e.g., double-tap to sprint or dodge):
+
+```lua
+local dodge = IIAS.new("Dodge")
+dodge:AddBind(Enum.KeyCode.W)
+
+-- Require 2 taps of 'W' within 0.35 seconds
+dodge:SetTapActivation(2, 0.35)
+
+dodge.Activated:Connect(function(active, pressed)
+    print("Dodge triggered by double-tap!")
+end)
+```
+
+---
+
+### 6. GUI Button Integration (Mobile Support)
+
+Connect on-screen `GuiButton` instances to keybinds. The button will automatically behave like a physical keybind, including hold/toggle behavior and modifier combinations:
+
+```lua
+local mobileButton = playerGui.HUD.SkillButton
+
+local skill = IIAS.new("Skill")
+skill:AddBind(Enum.KeyCode.E)
+skill:SetUIButton(mobileButton) -- Seamless cross-platform support!
+```
+
+---
+
+### 7. Directional & Composite Vector Actions
+
+IIAS natively supports Roblox IAS directional action types:
+- `Enum.InputActionType.Direction1D` (Number: `-1` to `1`)
+- `Enum.InputActionType.Direction2D` (Vector2: e.g. Thumbsticks, WASD)
+- `Enum.InputActionType.Direction3D` (Vector3)
+- `Enum.InputActionType.ViewportPosition` (Vector2 screen coordinates)
+
+For directional actions, you can configure composite bindings (e.g. WASD composite for a Vector2 action):
+
+```lua
+local move = IIAS.new("Movement", Enum.InputActionType.Direction2D)
+
+-- Assign directional composite keys
+move:SetCompositeDirections(
+    Enum.KeyCode.W, -- Up
+    Enum.KeyCode.S, -- Down
+    Enum.KeyCode.A, -- Left
+    Enum.KeyCode.D  -- Right
+)
+
+move.Activated:Connect(function(direction: Vector2)
+    print("Movement vector:", direction)
+end)
+```
+
+---
+
+## 📚 API Reference
+
+### IIAS Static Functions
+
+| Function | Signature | Description |
+|---|---|---|
+| `IIAS.new` | `(name: string, inputType?: Enum.InputActionType) -> BindingObject` | Creates a new keybind action (defaults to `Bool`). |
+| `IIAS.get` | `(name: string) -> BindingObject?` | Retrieves a registered binding by name. |
+| `IIAS.getAll` | `() -> { [string]: BindingObject }` | Returns a dictionary of all active registered bindings. |
+| `IIAS.newContext` | `(name: string) -> ()` | Creates a new context group. |
+| `IIAS.getContext` | `(name: string) -> Context?` | Returns a copy of the context group data `{ Enabled: boolean, Members: { [string]: boolean } }`. |
+| `IIAS.addContext` | `(name: string, ...: BindingObject) -> ()` | Adds one or more bindings to a context group. |
+| `IIAS.enableContext` | `(name: string, enabled: boolean) -> ()` | Enables or disables all actions belonging to the context group. |
+| `IIAS.isContextEnabled` | `(name: string) -> boolean` | Returns whether the context group is currently enabled. |
+| `IIAS.removeContext` | `(name: string) -> ()` | Removes a context group. |
+| `IIAS.removeFromContext` | `(name: string, bind: BindingObject) -> ()` | Removes a specific binding from a context group. |
+| `IIAS.removeAllFromContext` | `(name: string) -> ()` | Empties all bindings from a context group without deleting the group. |
+| `IIAS.clearContexts` | `() -> ()` | Clears all context groups and recalculates action states. |
+| `IIAS.enableControlHints` | `(module: Instance \| string, parent?: Instance \| PlayerGui) -> ScreenGui` | Integrates with ZurichBT's ControlHints module. |
+
+---
+
+### BindingObject Methods
+
+> [!TIP]
+> In the signatures below, `Key` represents `Enum.KeyCode | string` (e.g. `Enum.KeyCode.E` or `"E"`, `"MouseButton1"`, `"Touch"`), and `Content` represents a Roblox content string or asset URL (`"rbxassetid://..."`).
+
+#### Keybind Configuration
+```lua
+:AddBind(mainKey: Key, primaryMod?: Key, secondaryMod?: Key, uiButton?: GuiButton, uiModifier?: GuiButton, displayName?: string, displayImage?: Content, bindingType?: Enum.InputBindingType)
+-- Adds a new key binding. Keys accept Enum.KeyCode or string names ("E", "MouseButton1", "Touch").
+
+:SetBind(mainKey: Key, primaryMod?: Key, secondaryMod?: Key, uiButton?: GuiButton, uiModifier?: GuiButton, displayName?: string, displayImage?: Content, bindingType?: Enum.InputBindingType)
+-- Clears existing keybinds and sets a single binding.
+
+:SetAllBinds(binds: Binds)
+-- Replaces all binds with a cloned binds table.
+
+:RemoveBind(mainKey: Key, primaryMod?: Key, secondaryMod?: Key)
+-- Removes a specific keybind matching key and modifiers.
+
+:EditBind(oldMain: Key, oldMods: { PrimaryModifier: Key?, SecondaryModifier: Key? }, newMain: Key, newMods: { PrimaryModifier: Key?, SecondaryModifier: Key? })
+-- Modifies an existing binding in-place.
+
+:GetBinds() -> Binds
+-- Returns a deep clone of the binds table.
+
+:ClearBinds()
+-- Clears all configured keybinds on the action.
+
+:Destroy() -> boolean
+-- Disconnects all signals, cancels timers, and destroys underlying Roblox instances.
+```
+
+#### Mode & Activation Settings
+```lua
+:SetHold(hold: boolean)
+-- true = hold to activate; false = toggle mode.
+
+:SetTapActivation(requiredTaps: number, tapWindow: number)
+-- Requires N taps within tapWindow seconds to activate (e.g. 2 taps in 0.3s).
+
+:Fire(active: variant, pressed: boolean)
+-- Manually fires the binding object with the specified active payload and pressed state.
+
+:GetState() -> variant
+-- Returns the current active variant value (boolean, number, Vector2, or Vector3).
+
+:GetToggleState() -> boolean
+-- Returns the current toggle state for toggle-mode binds.
+
+:GetActiveMainKey() -> Enum.KeyCode
+-- Returns the primary KeyCode currently driving the action, if active.
+
+:GetActiveBindCount() -> number
+-- Returns 1 if currently active, 0 otherwise.
+```
+
+#### Cooldown Management
+```lua
+:SetCooldown(cooldown: number | boolean, startImmediately?: boolean)
+-- Passing a number sets timed duration (seconds). Passing true/false sets manual cooldown. Optional boolean starts timed cooldown immediately.
+
+:StartCooldown(duration?: number)
+-- Programmatically starts a timed cooldown immediately (uses duration or configured Cooldown.Value).
+
+:ResetCooldown()
+-- Clears active timed & manual cooldowns, cancels running timer, and fires Cooldown.Completed.
+
+:IsInCooldown() -> boolean
+-- Returns true if the action is currently on cooldown (timed or manual).
+
+:GetCooldownRemaining() -> number
+-- Returns remaining seconds on timed cooldown, math.huge if manual, or 0 if inactive.
+```
+
+#### Input Buffering
+```lua
+:SetInputBufferEnabled(enabled: boolean)
+-- Enables or disables input buffering.
+
+:SetInputBufferTime(time: number)
+-- Sets buffer window duration in seconds (default: 0.15).
+
+:IsBuffered() -> boolean
+-- Returns whether an input is currently waiting in the buffer.
+
+:ResetBuffer()
+-- Clears any currently buffered input.
+
+:GetBufferedVariant() -> variant?
+-- Returns the buffered value payload, if present.
+
+:GetBufferedKey() -> Enum.KeyCode
+-- Returns the buffered KeyCode, if present.
+```
+
+#### State & Priority Control
+```lua
+:SetEnabled(enabled: boolean)
+-- Enables or disables the action.
+
+:IsEnabled() -> boolean
+-- Returns whether the action is enabled.
+
+:SetPriority(priority: number)
+-- Sets input processing priority on the underlying InputContext.
+
+:GetPriority() -> number
+-- Returns current priority.
+
+:SetSink(sink: boolean)
+-- Sets whether the action sinks inputs, preventing lower-priority actions from receiving them.
+
+:GetSink() -> boolean
+-- Returns current sink state.
+```
+
+#### GUI Integration
+```lua
+:SetUIButton(button: GuiButton?)
+-- Links a GuiButton as an alternate input. Automatically handles cleanup when button is destroyed.
+
+:SetUIModifier(button: GuiButton?)
+-- Links a GuiButton as an input modifier.
+
+:GetUIModifier() -> GuiButton?
+-- Returns the linked modifier GuiButton.
+
+:CreateActionLabel(parent?: Instance) -> GuiObject?
+-- Creates a native Roblox InputActionLabel bound to this action.
+```
+
+#### Directional & Analog Settings
+```lua
+:SetScale(scale: number) / :GetScale() -> number
+:SetVectorScale(vector: Vector2 | Vector3) / :GetVectorScale() -> Vector2 | Vector3
+:SetResponseCurve(curve: number) / :GetResponseCurve() -> number
+:SetPressedThreshold(threshold: number) / :GetPressedThreshold() -> number
+:SetReleasedThreshold(threshold: number) / :GetReleasedThreshold() -> number
+:SetPointerIndex(index: number) / :GetPointerIndex() -> number
+:SetClampMagnitudeToOne(bool: boolean) / :GetClampMagnitudeToOne() -> boolean
+:SetCompositeDirections(up?: Key, down?: Key, left?: Key, right?: Key, forward?: Key, backward?: Key)
+:GetCompositeDirections() -> { Up: Enum.KeyCode, Down: Enum.KeyCode, Left: Enum.KeyCode, Right: Enum.KeyCode, Forward: Enum.KeyCode, Backward: Enum.KeyCode }
+:SetCompositeModifiers(primaryModifier?: Key, secondaryModifier?: Key)
+:GetCompositeModifiers() -> { PrimaryModifier: Enum.KeyCode, SecondaryModifier: Enum.KeyCode }
+```
+
+#### Engine Instance Access
+```lua
+:GetInputAction() -> InputAction?
+-- Returns underlying Roblox InputAction instance.
+
+:GetInputContext() -> InputContext?
+-- Returns underlying Roblox InputContext instance.
+
+:GetInputBinding(keyOrName?: string | Key) -> InputBinding?
+-- Returns specific child InputBinding instance.
+
+:GetPreferredBinding() -> InputBinding?
+-- Returns the active InputBinding currently driving the action.
+```
+
+#### Display Metadata
+```lua
+:SetDisplayName(mainKey: Key, displayName: string) -> boolean
+:GetDisplayName(mainKey: Key) -> string?
+:SetDisplayImage(mainKey: Key, displayImage: Content) -> boolean
+:GetDisplayImage(mainKey: Key) -> Content?
+:SetBindingType(mainKey: Key, bindingType: Enum.InputBindingType) -> boolean
+:GetBindingType(mainKey: Key) -> Enum.InputBindingType?
+```
+
+---
+
+### BindingObject Properties
+
+```lua
+bind.Name               -- string: Name of the action
+bind.Active             -- variant: Current active value (boolean, number, Vector2, Vector3)
+bind.Hold               -- boolean: Whether hold mode is active
+bind.Enabled            -- boolean: Whether action is enabled
+bind.Priority           -- number: InputContext priority
+bind.Sink               -- boolean: InputContext sinkability
+bind.Binds              -- Binds: Internal dictionary of configured keybinds
+bind.UIButton           -- GuiButton?: Linked alternate GUI button
+bind.UIModifier         -- GuiButton?: Linked modifier GUI button
+
+bind.Cooldown           -- Table grouping cooldown duration and lifecycle signals:
+bind.Cooldown.Value     -- number: Cooldown duration in seconds (default: 0)
+bind.Cooldown.Began     -- IAScriptSignal: Fires when cooldown becomes active
+bind.Cooldown.Completed -- IAScriptSignal: Fires when cooldown completes/inactivates
+
+bind.Activated          -- IAScriptSignal<T, boolean>: Fires on input change (active, pressed)
+bind.Started            -- IAScriptSignal<T>: Fires on input start (active)
+bind.Ended              -- IAScriptSignal<T>: Fires on input end (active)
+
+bind.Scale              -- number: Scale for directional inputs
+bind.VectorScale        -- Vector2 | Vector3: Vector scale for 2D/3D inputs
+bind.ResponseCurve      -- number: Response curve
+bind.PressedThreshold   -- number: Threshold for button press
+bind.ReleasedThreshold  -- number: Threshold for button release
+bind.PointerIndex       -- number: Pointer index
+bind.ClampMagnitudeToOne -- boolean: Clamps vector magnitude to 1
+bind.TapRequired        -- number: Required taps for activation
+bind.TapWindow          -- number: Tap sequence time window
+bind.InputBufferEnabled -- boolean: Whether input buffer is enabled
+bind.InputBufferTime    -- number: Input buffer window in seconds
+```
+
+---
+
+### Signals & Event Payloads
+
+All signals in IIAS implement standard signal methods: `:Connect()`, `:Once()`, `:Wait()`, and `:Fire()`.
+
+| Signal | Signature | Description |
+|---|---|---|
+| `bind.Activated` | `(active: T, pressed: boolean) -> ()` | Primary action event. Fires when an input changes state. |
+| `bind.Started` | `(active: T) -> ()` | Fires when an input transition starts (`pressed == true`). |
+| `bind.Ended` | `(active: T) -> ()` | Fires when an input transition ends (`pressed == false`). |
+| `bind.Cooldown.Began` | `() -> ()` | Fires when the action enters cooldown (timed or manual). |
+| `bind.Cooldown.Completed` | `() -> ()` | Fires when the action transitions back from cooldown to ready. |
+
+---
+
+## 🛠️ Practical Examples
+
+### Example 1: Sprint & Walk System
 
 ```lua
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -228,61 +544,106 @@ local humanoid = character:WaitForChild("Humanoid")
 local sprint = IIAS.new("Sprint")
 local walk = IIAS.new("Walk")
 
--- Configure as hold buttons
+-- Configure as hold actions
 sprint:SetHold(true)
 walk:SetHold(true)
 
--- Set keybinds
+-- Add keybinds (Keyboard and Gamepad)
 sprint:AddBind(Enum.KeyCode.LeftShift)
+sprint:AddBind(Enum.KeyCode.ButtonL3)
+
 walk:AddBind(Enum.KeyCode.LeftControl)
 
--- Connect to humanoid
-sprint.Activated:Connect(function(active, pressed)
+-- Connect to humanoid WalkSpeed
+sprint.Activated:Connect(function(active: boolean)
     humanoid.WalkSpeed = active and 24 or 16
 end)
 
-walk.Activated:Connect(function(active, pressed)
-    humanoid.WalkSpeed = active and 8 or 16
+walk.Activated:Connect(function(active: boolean)
+    humanoid.WalkSpeed = active and 10 or 16
 end)
 ```
 
 ---
 
-## Example: Advanced Keybind with Cooldown
+### Example 2: Ability with Cooldown, Input Buffering & UI
 
 ```lua
-local IIAS = require(game.ReplicatedStorage.IllusionIAS)
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local IIAS = require(ReplicatedStorage.IllusionIAS)
 
-local bind = IIAS.new("Bind")
+local spell = IIAS.new("CastSpell")
+spell:AddBind(Enum.KeyCode.Q)
+spell:AddBind(Enum.KeyCode.ButtonX)
 
--- Shift + F to activate
-bind:AddBind(Enum.KeyCode.F, Enum.KeyCode.LeftShift)
+-- 4-second cooldown with a 0.3s input buffer
+spell:SetCooldown(4)
+spell:SetInputBufferEnabled(true)
+spell:SetInputBufferTime(0.3)
 
--- Toggle mode
-bind:SetHold(false)
+-- Observe cooldown lifecycle to update ability icon UI
+spell.Cooldown.Began:Connect(function()
+    print("[UI] Spell on cooldown! Greying out icon...")
+end)
 
--- 2 second cooldown
-bind:SetCooldown(2)
+spell.Cooldown.Completed:Connect(function()
+    print("[UI] Spell ready! Enabling icon...")
+end)
 
--- Double-tap within 0.5s to activate
-bind:SetTapActivation(2, 0.5)
-
-bind.Activated:Connect(function(active, pressed)
-    if bind:IsInCooldown() then return end
-    print("Bind state:", active, "| Key pressed:", pressed)
+spell.Activated:Connect(function(active: boolean, pressed: boolean)
+    if not pressed then return end
+    print("Spell cast successfully!")
 end)
 ```
 
 ---
 
-## Feedback & Support
+### Example 3: Key Combinations with Modifiers
 
-I'd love to hear your thoughts! Please share:
-- Feature requests
-- Bug reports
-- Use cases from your projects
-- Suggestions for improvements
+```lua
+local specialMove = IIAS.new("SpecialMove")
 
-Thanks for checking out IllusionIAS - happy scripting!
+-- Shift + F to activate
+specialMove:AddBind(Enum.KeyCode.F, Enum.KeyCode.LeftShift)
 
-*- Illusion* | discord: @illuusion
+-- Or string syntax:
+-- specialMove:AddBind("F", "LeftShift")
+
+specialMove.Activated:Connect(function(active: boolean, pressed: boolean)
+    if pressed then
+        print("Special move executed!")
+    end
+end)
+```
+
+---
+
+### Example 4: Mobile On-Screen Button Integration
+
+```lua
+local Players = game:GetService("Players")
+local IIAS = require(game:GetService("ReplicatedStorage").IllusionIAS)
+
+local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
+local attackButton = playerGui:WaitForChild("HUD"):WaitForChild("AttackButton")
+
+local attack = IIAS.new("Attack")
+attack:AddBind(Enum.KeyCode.F) -- PC
+attack:SetUIButton(attackButton) -- Mobile / Touch
+
+attack.Activated:Connect(function(active: boolean, pressed: boolean)
+    if pressed then
+        print("Attack triggered from keyboard or mobile button!")
+    end
+end)
+```
+
+---
+
+## 💬 License & Support
+
+- **License**: [MIT](LICENSE)
+- **Creator**: Illusion (*discord: @illuusion*)
+- **DevForum Discussion**: [Illusion's InputActionSystem DevForum Thread](https://devforum.roblox.com/t/illusions-inputactionsystem-the-best-inputmanager-ever/4071242/)
+
+Feel free to open issues or pull requests on GitHub for bug reports and feature suggestions!
