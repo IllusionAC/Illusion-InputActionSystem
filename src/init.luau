@@ -14,7 +14,7 @@ local IASignal = require("@self/IllusionSignal")
 local BindUtils = require("@self/BindUtils")
 
 export type IAScriptConnection = IAS.IAScriptConnection
-export type IAScriptSignal<T... = ()> = IAS.IAScriptSignal<T...>
+export type IAScriptSignal<T = variant> = IAS.IAScriptSignal<T>
 export type variant = IAS.variant
 export type Bind = IAS.Bind
 export type Binds = IAS.Binds
@@ -23,7 +23,7 @@ export type Context = IAS.Context
 export type Contexts = IAS.Contexts
 export type IllusionIAS = IAS.IllusionIAS
 export type supposedKeyCode = IAS.supposedKeyCode
-export type func<T... = ()> = IAS.func<T...>
+export type func<T = variant> = IAS.func<T>
 
 @native local function getBindFolder(): Folder
 	local existing = script:FindFirstChild("BindFolder")
@@ -224,9 +224,9 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 		self.Activated:Fire(value, pressed)
 
 		if pressed then
-			self.Started:Fire(value)
+			self.Started:Fire(value, true)
 		else
-			self.Ended:Fire(value)
+			self.Ended:Fire(value, false)
 		end
 	end
 
@@ -240,7 +240,7 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 		if _IsOnCooldown then return end
 		if not isCooldownActive() then return end
 		_IsOnCooldown = true
-		self.Cooldown.Began:Fire()
+		self.Cooldown.Began:Fire(true, true)
 	end
 
 	local function checkCooldownCompleted()
@@ -251,7 +251,7 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 			task.cancel(_CooldownTimer)
 			_CooldownTimer = nil
 		end
-		self.Cooldown.Completed:Fire()
+		self.Cooldown.Completed:Fire(false, false)
 	end
 
 	local function startTimedCooldown(duration: number)
@@ -696,7 +696,7 @@ function IIAS.new(name: string, inputType: Enum.InputActionType?): BindingObject
 			_TapCount = 0
 			table.clear(blockedPresses)
 			self.Activated:Fire(variantBaseValue, false)
-			self.Ended:Fire(variantBaseValue)
+			self.Ended:Fire(variantBaseValue, false)
 		end
 
 		if InputContext then

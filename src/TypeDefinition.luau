@@ -8,25 +8,25 @@
 
 export type variant = boolean | number | Vector2 | Vector3
 
-export type func<T... = ()> = (T...) -> ()
+export type func<T = variant> = (active: T, pressed: boolean) -> ()
 
 export type IAScriptConnection = {
 	Connected: boolean,
 	Disconnect: (self: IAScriptConnection) -> (),
 }
 
-export type IAScriptSignal<T... = ()> = {
-	Connect: (self: IAScriptSignal<T...>, fn: func<T...>) -> IAScriptConnection,
-	Once: (self: IAScriptSignal<T...>, fn: func<T...>) -> IAScriptConnection,
-	Fire: (self: IAScriptSignal<T...>, T...) -> (),
-	Wait: (self: IAScriptSignal<T...>) -> T...,
-	DisconnectAll: (self: IAScriptSignal<T...>) -> (),
+export type IAScriptSignal<T = variant> = {
+	Connect: (self: IAScriptSignal<T>, fn: func<T>) -> IAScriptConnection,
+	Once: (self: IAScriptSignal<T>, fn: func<T>) -> IAScriptConnection,
+	Fire: (self: IAScriptSignal<T>, active: T, pressed: boolean) -> (),
+	Wait: (self: IAScriptSignal<T>) -> (T, boolean),
+	DisconnectAll: (self: IAScriptSignal<T>) -> (),
 }
 
-export type Node<T... = ()> = {
-	fn: func<T...>?,
-	next: Node<T...>?,
-	prev: Node<T...>?,
+export type Node<T = variant> = {
+	fn: func<T>?,
+	next: Node<T>?,
+	prev: Node<T>?,
 }
 
 export type supposedKeyCode = Enum.KeyCode | string
@@ -94,14 +94,14 @@ export type BindingObject<T = variant> = {
 	InputBufferEnabled: boolean,
 	InputBufferTime: number,
 
-	Activated: IAScriptSignal<T, boolean>,
+	Activated: IAScriptSignal<T>,
 	Started: IAScriptSignal<T>,
 	Ended: IAScriptSignal<T>,
 
 	Cooldown: {
 		Value: number,
-		Began: IAScriptSignal,
-		Completed: IAScriptSignal,
+		Began: IAScriptSignal<boolean>,
+		Completed: IAScriptSignal<boolean>,
 	},
 
 	Fire: (self: BindingObject<T>, active: T, pressed: boolean) -> (),
