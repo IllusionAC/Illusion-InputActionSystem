@@ -5,7 +5,7 @@
 ![IIASLogo|256x256, 75%](./IIASLogo.png)
 </div>
 
-[![Wally Version](https://img.shields.io/badge/wally-v1.2.0-blue.svg)](https://wally.run/package/illusionac/illusion-inputactionsystem)
+[![Wally Version](https://img.shields.io/badge/wally-v1.2.5-blue.svg)](https://wally.run/package/illusionac/illusion-inputactionsystem)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 **Illusion's InputActionSystem (IIAS)** is a powerful, production-ready input and keybind management library built for Roblox's modern **InputActionSystem (IAS)** engine architecture. It provides an intuitive, high-level API over native `InputContext`, `InputAction`, and `InputBinding` instances while adding game-ready mechanics like dynamic cooldowns, input buffering, double-tap activation, context groups, mobile GUI integration, and lifecycle signals.
@@ -63,7 +63,7 @@ Add IIAS to your `wally.toml`:
 
 ```toml
 [dependencies]
-IllusionIAS = "illusionac/illusion-inputactionsystem@^1.2.0"
+IllusionIAS = "illusionac/illusion-inputactionsystem@^1.2.5"
 ```
 
 Then install with `wally install`.
